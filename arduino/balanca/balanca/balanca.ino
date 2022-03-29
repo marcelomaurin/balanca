@@ -29,7 +29,7 @@ int pushButtonC = 8;
 int flgContinuo;
 int flgMod;
 void Wellcome(){
-  Serial.println('Zanthus - Emulador de Protocolo');
+  Serial.println('Emulador de protocolo');
   Serial.println('Emulador de Balança Toledo!');
 
 }
