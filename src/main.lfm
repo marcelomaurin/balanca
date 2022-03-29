@@ -1,0 +1,116 @@
+object Form1: TForm1
+  Left = 389
+  Height = 199
+  Top = 217
+  Width = 493
+  Caption = 'Reconhecimento de Balança'
+  ClientHeight = 199
+  ClientWidth = 493
+  OnCreate = FormCreate
+  LCLVersion = '2.0.12.0'
+  object Label1: TLabel
+    Left = 16
+    Height = 15
+    Top = 16
+    Width = 31
+    Caption = 'Porta:'
+    ParentColor = False
+  end
+  object Button1: TButton
+    Left = 240
+    Height = 41
+    Top = 31
+    Width = 75
+    Caption = 'recarrega'
+    OnClick = Button1Click
+    TabOrder = 0
+  end
+  object btConectar: TButton
+    Left = 16
+    Height = 25
+    Top = 88
+    Width = 96
+    Caption = 'Conectar'
+    OnClick = btConectarClick
+    TabOrder = 1
+  end
+  object btDesconectar1: TButton
+    Left = 121
+    Height = 25
+    Top = 88
+    Width = 107
+    Caption = 'Desconectar'
+    OnClick = btDesconectar1Click
+    TabOrder = 2
+  end
+  object Label2: TLabel
+    Left = 19
+    Height = 15
+    Top = 128
+    Width = 28
+    Caption = 'Peso:'
+    ParentColor = False
+  end
+  object btTesta: TButton
+    Left = 344
+    Height = 25
+    Top = 32
+    Width = 75
+    Caption = 'Leituras'
+    OnClick = btTestaClick
+    TabOrder = 3
+  end
+  object lbstatus: TLabel
+    Left = 280
+    Height = 15
+    Top = 98
+    Width = 32
+    Caption = 'Status'
+    ParentColor = False
+  end
+  object lbPeso: TLEDNumber
+    Left = 20
+    Height = 30
+    Top = 144
+    Width = 102
+    Caption = '00000'
+    Columns = 6
+  end
+  object Label3: TLabel
+    Left = 128
+    Height = 15
+    Top = 152
+    Width = 62
+    Caption = 'Peso em KG'
+    ParentColor = False
+  end
+  object cbserial: TEdit
+    Left = 16
+    Height = 23
+    Top = 31
+    Width = 208
+    TabOrder = 4
+    Text = 'COM17'
+  end
+  object LazSerial1: TLazSerial
+    Active = False
+    BaudRate = br__2400
+    DataBits = db8bits
+    Parity = pNone
+    FlowControl = fcNone
+    StopBits = sbOne
+    Device = 'COM17'
+    RcvLineCRLF = False
+    OnRxData = LazSerial1RxData
+    Left = 344
+    Top = 72
+  end
+  object Timer1: TTimer
+    Enabled = False
+    OnTimer = Timer1Timer
+    OnStartTimer = Timer1StartTimer
+    OnStopTimer = Timer1StopTimer
+    Left = 315
+    Top = 143
+  end
+end
