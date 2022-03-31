@@ -7,7 +7,8 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, main, LazSerialPort, sdposeriallaz
+  Forms, main, setmain, funcoes, registro, LazSerialPort, lnetbase, lnetvisual,
+  sdposeriallaz, peso, Setup
   { you can add units after this };
 
 {$R *.res}
@@ -16,7 +17,7 @@ begin
   RequireDerivedFormResource:=True;
   Application.Scaled:=True;
   Application.Initialize;
-  Application.CreateForm(TForm1, Form1);
+  Application.CreateForm(Tfrmmain, frmmain);
   Application.Run;
 end.
 

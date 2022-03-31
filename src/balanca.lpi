@@ -25,21 +25,27 @@
       <FormatVersion Value="2"/>
       <Modes Count="0"/>
     </RunParams>
-    <RequiredPackages Count="4">
+    <RequiredPackages Count="6">
       <Item1>
-        <PackageName Value="industrial"/>
+        <PackageName Value="lnetvisual"/>
       </Item1>
       <Item2>
-        <PackageName Value="SdpoSerialLaz"/>
+        <PackageName Value="lnetbase"/>
       </Item2>
       <Item3>
-        <PackageName Value="LazSerialPort"/>
+        <PackageName Value="industrial"/>
       </Item3>
       <Item4>
-        <PackageName Value="LCL"/>
+        <PackageName Value="SdpoSerialLaz"/>
       </Item4>
+      <Item5>
+        <PackageName Value="LazSerialPort"/>
+      </Item5>
+      <Item6>
+        <PackageName Value="LCL"/>
+      </Item6>
     </RequiredPackages>
-    <Units Count="2">
+    <Units Count="7">
       <Unit0>
         <Filename Value="balanca.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -47,10 +53,40 @@
       <Unit1>
         <Filename Value="main.pas"/>
         <IsPartOfProject Value="True"/>
-        <ComponentName Value="Form1"/>
+        <ComponentName Value="frmmain"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit1>
+      <Unit2>
+        <Filename Value="setmain.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="funcoes.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="registro.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmRegistrar"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="peso.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmPeso"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="setup.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmSetup"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="Setup"/>
+      </Unit6>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
