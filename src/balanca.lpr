@@ -7,8 +7,8 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, main, setmain, funcoes, registro, LazSerialPort, lnetbase, lnetvisual,
-  sdposeriallaz, peso, Setup
+  Forms, main, setmain, funcoes, registro, LazSerialPort, indylaz, lnetbase,
+  lnetvisual, sdposeriallaz, peso, Setup
   { you can add units after this };
 
 {$R *.res}

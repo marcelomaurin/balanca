@@ -251,6 +251,10 @@ object frmmain: Tfrmmain
       Caption = 'Peso'
       OnClick = MenuItem3Click
     end
+    object btlog: TMenuItem
+      Caption = 'Log'
+      OnClick = btlogClick
+    end
   end
   object LTCPComponent1: TLTCPComponent
     Port = 0
@@ -260,5 +264,43 @@ object frmmain: Tfrmmain
     ReuseAddress = True
     Left = 48
     Top = 136
+  end
+  object PopupNotifier1: TPopupNotifier
+    Color = clInfoBk
+    Icon.Data = {
+      07544269746D617000000000
+    }
+    Text = 'Text'
+    Title = 'Caption'
+    Visible = False
+    Left = 120
+    Top = 23
+  end
+  object IdHTTPServer1: TIdHTTPServer
+    Bindings = <>
+    DefaultPort = 8097
+    Intercept = IdServerCompressionIntercept1
+    IOHandler = IdServerIOHandlerSSLOpenSSL1
+    Scheduler = IdSchedulerOfThreadDefault1
+    OnCommandGet = IdHTTPServer1CommandGet
+    Left = 292
+    Top = 132
+  end
+  object IdServerCompressionIntercept1: TIdServerCompressionIntercept
+    CompressionLevel = 0
+    Left = 360
+    Top = 147
+  end
+  object IdServerIOHandlerSSLOpenSSL1: TIdServerIOHandlerSSLOpenSSL
+    SSLOptions.Mode = sslmUnassigned
+    SSLOptions.VerifyMode = []
+    SSLOptions.VerifyDepth = 0
+    Left = 224
+    Top = 147
+  end
+  object IdSchedulerOfThreadDefault1: TIdSchedulerOfThreadDefault
+    MaxThreads = 0
+    Left = 154
+    Top = 135
   end
 end

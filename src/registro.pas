@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, ExtCtrls,
-  lNetComponents, lNet;
+  PopupNotifier, lNetComponents, lNet;
 
 type
 
@@ -83,7 +83,7 @@ end;
 procedure TfrmRegistrar.LTCPComponent1Connect(aSocket: TLSocket);
 var
   resultado : string;
-  begin
+begin
   if (INFO <> '') then
   begin
     aSocket.SendMessage(INFO);

@@ -6,12 +6,15 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Buttons,
-  ExtCtrls, Menus, LazSerial, FileUtil, LazFileUtils, LazSynaSer, synaser,
-  lNetComponents, LedNumber, setmain, registro, peso, setup, lNet;
+  ExtCtrls, Menus, PopupNotifier, LazSerial, FileUtil, LazFileUtils, LazSynaSer,
+  synaser, IdHTTPServer, lNetComponents, LedNumber, setmain, registro, peso,
+  setup, lNet, log, IdCustomHTTPServer,  IdCompressionIntercept,
+  IdSSLOpenSSL, IdSchedulerOfThreadDefault,IdContext;
 
 Const
-    Version : string =  '0.03';
+    Version : string =  '0.04';
     PortBalanca = 8097;
+    ServerName :string = 'localhost';
 
 
 type
@@ -24,6 +27,10 @@ type
     Button1: TButton;
     btConectar: TButton;
     btSetup: TButton;
+    IdHTTPServer1: TIdHTTPServer;
+    IdSchedulerOfThreadDefault1: TIdSchedulerOfThreadDefault;
+    IdServerCompressionIntercept1: TIdServerCompressionIntercept;
+    IdServerIOHandlerSSLOpenSSL1: TIdServerIOHandlerSSLOpenSSL;
     lbVersao: TLabel;
     lbstatus: TLabel;
     LazSerial1: TLazSerial;
@@ -31,12 +38,15 @@ type
     MenuItem1: TMenuItem;
     MenuItem2: TMenuItem;
     MenuItem3: TMenuItem;
+    btlog: TMenuItem;
     popTray: TPopupMenu;
+    PopupNotifier1: TPopupNotifier;
     Timer1: TTimer;
     btsair: TToggleBox;
     TrayIcon1: TTrayIcon;
     procedure btConectarClick(Sender: TObject);
     procedure btDesconectar1Click(Sender: TObject);
+    procedure btlogClick(Sender: TObject);
     procedure btsairChange(Sender: TObject);
     procedure btSetupClick(Sender: TObject);
     procedure btTestaClick(Sender: TObject);
@@ -44,6 +54,8 @@ type
     procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure IdHTTPServer1CommandGet(AContext: TIdContext;
+      ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
     procedure LazSerial1BlockSerialStatus(Sender: TObject;
       Reason: THookSerialReason; const Value: string);
     procedure LazSerial1RxData(Sender: TObject);
@@ -66,7 +78,8 @@ type
     function PegaSerial() : String;
     procedure SalvarContexto();
     procedure Setup();
-
+    procedure getPage(aSocket : TLSocket; PeerAddress : string; mensagem: string);
+    procedure RespostaHTMLCabecalho(aSocket: TLSocket);
   public
 
   end;
@@ -83,6 +96,7 @@ implementation
 procedure Tfrmmain.FormCreate(Sender: TObject);
 begin
   Lbuffer:= '';
+  frmlog := TfrmLog.create(self);
   frmsetup := Tfrmsetup.create(self);
   Fsetmain := TSetmain.create();
   self.left := Fsetmain.posx;
@@ -100,6 +114,33 @@ procedure Tfrmmain.FormDestroy(Sender: TObject);
 begin
   SalvarContexto();
   Fsetmain.free();
+  frmlog.free;
+  frmRegistrar.free;
+  frmSetup.free;
+end;
+
+procedure Tfrmmain.IdHTTPServer1CommandGet(AContext: TIdContext;
+  ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
+var
+  buffer: ansistring;
+begin
+ //  buffer :='HTTP/1.1 200 OK '+#10;
+ //buffer := buffer +'Content-Type: text/html'+#10;
+ //buffer := buffer + '<!DOCTYPE HTML>'+#10;
+ buffer :=  '<html>'+#10;
+ buffer := buffer + '<head>'+#10;
+ buffer := buffer + '<title>Meu SRV</title>'+#10;
+ buffer := buffer + '</head>'+#10;
+ buffer := buffer + '<body>'+#10;
+ buffer := buffer + '{';
+ buffer := buffer + '"rs":{';
+ buffer := buffer + '"peso":' ;
+ buffer := buffer + '"'+frmpeso.lbPeso.Caption+'"';
+ buffer := buffer + '}';
+ buffer := buffer + '}'+#10;
+ buffer := buffer + '</body>'+#10;
+ buffer := buffer + '</html>'+#10;
+ AResponseInfo.ContentText := buffer;
 end;
 
 procedure Tfrmmain.LazSerial1BlockSerialStatus(Sender: TObject;
@@ -142,6 +183,7 @@ begin
      begin
        //Memo1.Lines.Add(Lbuffer);
        // frmpeso.lbPeso.Caption:=Lbuffer;
+        Lbuffer:= copy(LBuffer,pos('',Lbuffer)+1,Length(Lbuffer));
         frmpeso.Peso(Lbuffer);
        Application.ProcessMessages;
        LBuffer := '';
@@ -169,16 +211,23 @@ var
 begin
   //Mensagem recebida padrao Fila:nro+#13
   aSocket.GetMessage(mensagem);
+  //PopupNotifier1.Text:=mensagem;
+  //PopupNotifier1.Show;
   //frmlog.Log('Receive:'+aSocket.PeerAddress+',msg:'+mensagem);
-  if (mensagem <> '') then
+  //if (mensagem <> '') then
+  //if (pos(mensagem,'GET / HTTP/1.1')<>-1) then
   begin
+     frmlog.Log('rec:'+mensagem);
+     (*
       if (POS(mensagem, 'PESO:')>=0) then
       begin
         aSocket.SendMessage('PESO:'+ frmPeso.lbPeso.Caption +#13);  //Vou implementar aqui
         aSocket.Disconnect(true);
       end;
+      *)
+     getPage(aSocket, aSocket.PeerAddress, mensagem);
   end;
-  aSocket.Disconnect(true);
+  //aSocket.Disconnect(true);
   LTCPComponent1.CallAction();
 end;
 
@@ -241,6 +290,7 @@ end;
 
 procedure Tfrmmain.btConectarClick(Sender: TObject);
 begin
+
   try
     LazSerial1.close;
     LazSerial1.Device := FSETMAIN.COMPORT;
@@ -257,9 +307,11 @@ begin
     Timer1.Enabled:= not Timer1.Enabled;
     TrayIcon1.Visible:=true;
     TrayIcon1.Hint:='Connected';
-    LTCPComponent1.Listen(PortBalanca);
+    //LTCPComponent1.Listen(PortBalanca);
+    IdHTTPServer1.active := true;
     hide;
   end;
+
 
 end;
 
@@ -269,6 +321,11 @@ begin
   Timer1.Enabled:= false;
   LazSerial1.close;
   Application.ProcessMessages();
+end;
+
+procedure Tfrmmain.btlogClick(Sender: TObject);
+begin
+  frmLog.show;
 end;
 
 procedure Tfrmmain.btsairChange(Sender: TObject);
@@ -347,6 +404,54 @@ begin
   //frmSetup.rgFlowControl.ItemIndex:=FSETMAIN.;
   frmSetup.rgStopbit.ItemIndex := FSETMAIN.STOPBIT;
   frmSetup.show();
+end;
+
+procedure Tfrmmain.RespostaHTMLCabecalho(aSocket: TLSocket);
+var
+  buffer : string;
+begin
+
+ buffer :='HTTP/1.1 200 OK '+#10;
+ buffer := buffer +'Content-Type: text/html'+#10;
+ buffer := buffer + '<!DOCTYPE HTML>'+#10;
+ buffer := buffer + '<html>'+#10;
+ buffer := buffer + '<head>'+#10;
+ buffer := buffer + '<title>Meu SRV</title>'+#10;
+ buffer := buffer + '</head>'+#10;
+ buffer := buffer + '<body>'+#10;
+ buffer := buffer + 'hello'+#10;
+ buffer := buffer + '</body>'+#10;
+ buffer := buffer + '</html>'+#10;
+
+ //aSocket.SendMessage('Connection: close'+#10+#13);
+ //aSocket.Send(UTF8Char(buffer),length(buffer));
+
+end;
+
+procedure Tfrmmain.getPage(aSocket: TLSocket; PeerAddress: string;
+  mensagem: string);
+var
+  buffer : WIDEstring;
+begin
+
+  RespostaHTMLCabecalho(aSocket);
+  //aSocket.SendMessage('Host:'+ServerName+' '+#10+#13);
+  //buffer := buffer + 'Refresh: 5';
+  //buffer := buffer + #13#10;
+  (*
+  aSocket.SendMessage('<!DOCTYPE HTML>'+#10+#13);
+  aSocket.SendMessage('<html>'+#10+#13);
+  aSocket.SendMessage('<head>'+#10+#13);
+  aSocket.SendMessage('</head>'+#10+#13);
+  aSocket.SendMessage('<body>'+#10+#13);
+  aSocket.SendMessage('hello '+#10+#13);
+  aSocket.SendMessage('</body>'+#10+#13);
+  aSocket.SendMessage('</html>'+#10+#13);
+  //aSocket.Send(buffer,sizeof(buffer));
+  frmLog.Log('ENV:'+buffer);
+  //aSocket.SendMessage(buffer);
+  //LTCPComponent1.CallAction();
+  *)
 end;
 
 end.

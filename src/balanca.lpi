@@ -12,7 +12,6 @@
       <XPManifest>
         <DpiAware Value="True"/>
       </XPManifest>
-      <Icon Value="0"/>
     </General>
     <BuildModes Count="1">
       <Item1 Name="Default" Default="True"/>
@@ -25,27 +24,30 @@
       <FormatVersion Value="2"/>
       <Modes Count="0"/>
     </RunParams>
-    <RequiredPackages Count="6">
+    <RequiredPackages Count="7">
       <Item1>
-        <PackageName Value="lnetvisual"/>
+        <PackageName Value="indylaz"/>
       </Item1>
       <Item2>
-        <PackageName Value="lnetbase"/>
+        <PackageName Value="lnetvisual"/>
       </Item2>
       <Item3>
-        <PackageName Value="industrial"/>
+        <PackageName Value="lnetbase"/>
       </Item3>
       <Item4>
-        <PackageName Value="SdpoSerialLaz"/>
+        <PackageName Value="industrial"/>
       </Item4>
       <Item5>
-        <PackageName Value="LazSerialPort"/>
+        <PackageName Value="SdpoSerialLaz"/>
       </Item5>
       <Item6>
-        <PackageName Value="LCL"/>
+        <PackageName Value="LazSerialPort"/>
       </Item6>
+      <Item7>
+        <PackageName Value="LCL"/>
+      </Item7>
     </RequiredPackages>
-    <Units Count="7">
+    <Units Count="8">
       <Unit0>
         <Filename Value="balanca.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -87,6 +89,10 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="Setup"/>
       </Unit6>
+      <Unit7>
+        <Filename Value="log.lfm"/>
+        <IsPartOfProject Value="True"/>
+      </Unit7>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
