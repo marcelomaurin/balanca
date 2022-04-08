@@ -1,0 +1,10 @@
+Section: editors
+Priority: optional
+Maintainer: marcelo maurin <marcelomaurinmartins@maurinsoft.com.br>
+Homepage: http://maurinsoft.com.br/index.php/leitor-de-balanca/
+Package: balanca
+Architecture: amd64
+Version: 0.4
+Depends:
+Description: Hardware Control.
+ 

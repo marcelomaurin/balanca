@@ -1,0 +1,6 @@
+Balanca is a trade balance control software. It reads the weighing, passing through JSON in a Web API. 
+Balanca is produced by http://maurinsoft.com.br.
+The software is an open source project, and can be easily downloaded from git: https://github.com/marcelomaurin/balanca .
+
+For more information about the project, visit the project's blog:
+http://maurinsoft.com.br/index.php/leitor-de-balanca/

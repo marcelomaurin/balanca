@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Balanca
+Comment=Hardware Control
+Icon=/usr/share/icons/hicolor/balanca.png
+Exec=/usr/bin/balanca
+Terminal=false
+Type=Application
+Categories=Programming;Others
+GenericName=balanca

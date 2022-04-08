@@ -1,0 +1,10 @@
+Package: balanca
+Version: 0.4
+Depends:  libcanberra-gtk-module , libcanberra-gtk3-module
+Section: custom
+Priority: optional
+Architecture: all
+Essential: no
+Installed-Size: 1024
+Maintainer: maurinsoft.com.br
+Description: Hardware Control.
