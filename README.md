@@ -4,7 +4,7 @@ Esta ferramenta é dividida em 2 partes:
  - Hardware de simulação de balança compatível com Toledo
 
 Documentação:
-<a href="http://maurinsoft.com.br/index.php/leitor-de-balanca/">Projeto Balanca</a>
+<a href="[http://maurinsoft.com.br/index.php/leitor-de-balanca/](https://maurinsoft.com.br/?page_id=20144)">Projeto Balanca</a>
 
 # Software
 Software de leitura de balança PRIX 3 ou compatível.
