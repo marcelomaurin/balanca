@@ -5,7 +5,7 @@ unit scaleapi;
 interface
 
 uses
-  Classes, SysUtils, scaledevice, setmain, scalejson, legacyapi;
+  Classes, SysUtils, scaledevice, setmain, scalejson;
 
 type
   { TScaleApi }
@@ -23,7 +23,6 @@ type
     function NotFoundJson(const APath: string): string;
     function CommandResultJson(const ACommand: string; AAccepted: Boolean;
       const AMessage: string): string;
-    function LegacyJson: string;
   end;
 
 implementation
@@ -127,14 +126,6 @@ function TScaleApi.CommandResultJson(const ACommand: string; AAccepted: Boolean;
   const AMessage: string): string;
 begin
   Result := BuildCommandResultJson(ACommand, AAccepted, AMessage);
-end;
-
-function TScaleApi.LegacyJson: string;
-var
-  Snapshot: TScaleSnapshot;
-begin
-  Snapshot := FDevice.GetSnapshot;
-  Result := BuildLegacyWeightJson(Snapshot.LastWeight);
 end;
 
 end.
