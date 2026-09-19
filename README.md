@@ -1,5 +1,7 @@
 # Balança
 
+![CI](https://github.com/marcelomaurin/balanca/actions/workflows/ci.yml/badge.svg)
+
 Projeto para leitura de balanças seriais, originalmente desenvolvido para equipamentos Toledo/PRIX compatíveis, com aplicação desktop em Lazarus/Free Pascal, API HTTP, WebSocket em tempo real, modo headless e simulador Arduino.
 
 O projeto foi reorganizado para separar interface, transporte serial, protocolo, API e serviço. A arquitetura atual também permite adicionar novos protocolos de balança sem alterar o núcleo principal.
@@ -439,6 +441,14 @@ A suíte cobre:
 - seleção/fábrica de protocolos.
 
 Veja [tests/README.md](tests/README.md).
+
+## CI/CD
+
+O GitHub Actions valida automaticamente a suíte FPC em Linux e Windows, além de verificar a estrutura do repositório.
+
+O build Lazarus completo fica em um workflow manual separado por depender de pacotes externos do IDE. Tags `v*` geram um pacote de código-fonte validado pelos testes.
+
+Veja [docs/ci-cd.md](docs/ci-cd.md).
 
 ## Compatibilidade
 

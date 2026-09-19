@@ -1,0 +1,45 @@
+name: Package
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-source:
+    name: Package source and docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Free Pascal
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fp-compiler fp-units-base fp-units-fcl
+
+      - name: Run tests before packaging
+        run: sh tests/run_all.sh
+
+      - name: Build source package
+        run: |
+          mkdir -p dist/balanca
+          cp README.md dist/balanca/
+          cp -r src dist/balanca/src
+          cp -r docs dist/balanca/docs
+          cp -r simulator dist/balanca/simulator
+          cp -r tests dist/balanca/tests
+          cp -r instalador dist/balanca/instalador
+          tar -czf dist/balanca-source.tar.gz -C dist balanca
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: balanca-source
+          path: dist/balanca-source.tar.gz
+          if-no-files-found: error

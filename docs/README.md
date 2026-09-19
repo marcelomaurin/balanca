@@ -10,6 +10,7 @@ Este diretório reúne a documentação técnica e operacional do projeto.
 - [Reconexão automática](reconnection.md)
 - [Segurança](security.md)
 - [Drivers de protocolo](protocol-drivers.md)
+- [CI/CD](ci-cd.md)
 
 ## Comunicação e integração
 
@@ -41,6 +42,7 @@ Este diretório reúne a documentação técnica e operacional do projeto.
 9. [Drivers de protocolo](protocol-drivers.md)
 10. [Simulador Arduino](simulator-arduino.md)
 11. [Testes](../tests/README.md)
+12. [CI/CD](ci-cd.md)
 
 ## Princípios atuais do projeto
 
