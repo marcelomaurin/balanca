@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, LazSerial, lNet, setmain, scaledevice, scaleapi,
-  websocketserver, scalecommands;
+  scalejson, websocketserver, scalecommands;
 
 type
   TScaleConnectionState = (
@@ -33,6 +33,7 @@ type
     FDesiredActive: Boolean;
     FAutoReconnect: Boolean;
     FConnectionState: TScaleConnectionState;
+    FConnectionMessage: string;
     FLastResponseTick: QWord;
     FConnectedSinceTick: QWord;
     FNextReconnectTick: QWord;
@@ -61,6 +62,8 @@ type
     function SupportsCommand(ACommand: TScaleCommand): Boolean;
     function QueueCommand(ACommand: TScaleCommand): Boolean;
     function Snapshot: TScaleSnapshot;
+    function StatusJson: string;
+    function ConnectionStateName: string;
 
     procedure WebSocketClientConnected(ASocket: TLSocket);
     procedure WebSocketClientDisconnected(ASocket: TLSocket);
@@ -103,6 +106,7 @@ begin
   FDesiredActive := False;
   FAutoReconnect := True;
   FConnectionState := scsStopped;
+  FConnectionMessage := 'Parado';
   FLastResponseTick := 0;
   FConnectedSinceTick := 0;
   FNextReconnectTick := 0;
@@ -135,6 +139,7 @@ procedure TScaleApplication.SetConnectionState(AState: TScaleConnectionState;
   const AMessage: string);
 begin
   FConnectionState := AState;
+  FConnectionMessage := AMessage;
   if Assigned(FOnConnectionState) then
     FOnConnectionState(Self, AState, AMessage);
 end;
@@ -319,6 +324,40 @@ end;
 function TScaleApplication.Snapshot: TScaleSnapshot;
 begin
   Result := FDevice.GetSnapshot;
+end;
+
+function TScaleApplication.ConnectionStateName: string;
+begin
+  case FConnectionState of
+    scsStopped: Result := 'stopped';
+    scsConnecting: Result := 'connecting';
+    scsConnected: Result := 'connected';
+    scsWaitingReconnect: Result := 'waiting_reconnect';
+  else
+    Result := 'unknown';
+  end;
+end;
+
+function TScaleApplication.StatusJson: string;
+var
+  Base: string;
+begin
+  Base := FApi.StatusJson;
+
+  if (Length(Base) > 0) and (Base[Length(Base)] = '}') then
+    Delete(Base, Length(Base), 1);
+
+  Result :=
+    Base + ',' +
+    '"supervisor":{' +
+      '"desired_active":' + JsonBoolean(FDesiredActive) + ',' +
+      '"auto_reconnect":' + JsonBoolean(FAutoReconnect) + ',' +
+      '"state":' + JsonString(ConnectionStateName) + ',' +
+      '"message":' + JsonString(FConnectionMessage) + ',' +
+      '"reconnect_attempts":' + IntToStr(FReconnectAttempts) + ',' +
+      '"response_timeout_ms":' + IntToStr(FResponseTimeoutMs) +
+    '}' +
+    '}';
 end;
 
 procedure TScaleApplication.DeviceWeight(Sender: TObject; const AWeight: string);
