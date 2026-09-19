@@ -8,12 +8,24 @@
 #define DELTA_T_SECONDS 60UL
 #define BUTTON_DEBOUNCE_MS 40UL
 #define LOOP_DELAY_MS 20UL
+#define FAILURE_DELAY_MS 1500UL
 
 const uint8_t PIN_BUTTON_UP = 13;
 const uint8_t PIN_BUTTON_DOWN = 7;
 const uint8_t PIN_BUTTON_AUX = 8;
 
 const float WEIGHT_STEP = 0.4f;
+const float UNSTABLE_RANGE = 0.050f;
+
+enum FailureMode {
+  FM_NORMAL = 0,
+  FM_MISSING_ETX = 1,
+  FM_NOISE = 2,
+  FM_TRUNCATED = 3,
+  FM_DELAYED = 4,
+  FM_UNSTABLE = 5,
+  FM_SILENT = 6
+};
 
 float peso = 0.0f;
 float pesototal = 0.0f;
@@ -23,6 +35,12 @@ unsigned long lastAutoChangeMs = 0;
 
 bool flgContinuo = true;
 bool flgMod = false;
+
+bool waitingFailureMode = false;
+FailureMode failureMode = FM_NORMAL;
+
+bool delayedResponsePending = false;
+unsigned long delayedResponseAtMs = 0;
 
 bool lastButtonUpReading = HIGH;
 bool stableButtonUpState = HIGH;
@@ -53,17 +71,29 @@ void setup() {
 
   flgContinuo = true;
   flgMod = false;
+  failureMode = FM_NORMAL;
+  waitingFailureMode = false;
+  delayedResponsePending = false;
 
+  randomSeed(analogRead(A0));
   lastAutoChangeMs = millis();
 }
 
-void SendWeight() {
-  char weightText[16];
-  char frame[20];
+float CurrentWeight() {
   float currentWeight = pesototal + peso - tara;
 
-  // Mantem largura minima de 7 caracteres e 3 casas decimais.
-  // O buffer possui folga suficiente para sinal, valor, ponto e terminador.
+  if (failureMode == FM_UNSTABLE) {
+    long jitter = random(-50, 51);
+    currentWeight += ((float)jitter / 1000.0f);
+  }
+
+  return currentWeight;
+}
+
+size_t BuildWeightFrame(char *frame, size_t frameSize, bool includeEtx) {
+  char weightText[16];
+  float currentWeight = CurrentWeight();
+
   dtostrf(currentWeight, 7, 3, weightText);
 
   for (uint8_t i = 0; weightText[i] != '\0'; i++) {
@@ -73,24 +103,115 @@ void SendWeight() {
   }
 
   size_t pos = 0;
+
+  if (frameSize < 4) {
+    return 0;
+  }
+
   frame[pos++] = (char)STX;
   frame[pos++] = '+';
 
-  for (uint8_t i = 0; weightText[i] != '\0' && pos < sizeof(frame) - 2; i++) {
+  for (uint8_t i = 0; weightText[i] != '\0' && pos < frameSize - 2; i++) {
     frame[pos++] = weightText[i];
   }
 
-  frame[pos++] = (char)ETX;
-  frame[pos] = '\0';
+  if (includeEtx && pos < frameSize - 1) {
+    frame[pos++] = (char)ETX;
+  }
 
-  // Nao usa println: o protocolo termina exatamente no ETX.
-  Serial.write((const uint8_t *)frame, pos);
+  frame[pos] = '\0';
+  return pos;
+}
+
+void SendNoise() {
+  const uint8_t noise[] = {0x55, 0x7F, 0x00, 0x31, 0x0D, 0x0A};
+  Serial.write(noise, sizeof(noise));
+}
+
+void SendWeightNow() {
+  char frame[20];
+  size_t frameLength;
+
+  switch (failureMode) {
+    case FM_SILENT:
+      return;
+
+    case FM_MISSING_ETX:
+      frameLength = BuildWeightFrame(frame, sizeof(frame), false);
+      Serial.write((const uint8_t *)frame, frameLength);
+      return;
+
+    case FM_NOISE:
+      SendNoise();
+      frameLength = BuildWeightFrame(frame, sizeof(frame), true);
+      Serial.write((const uint8_t *)frame, frameLength);
+      SendNoise();
+      return;
+
+    case FM_TRUNCATED:
+      frameLength = BuildWeightFrame(frame, sizeof(frame), true);
+      if (frameLength > 3) {
+        Serial.write((const uint8_t *)frame, frameLength / 2);
+      }
+      return;
+
+    case FM_UNSTABLE:
+    case FM_NORMAL:
+    default:
+      frameLength = BuildWeightFrame(frame, sizeof(frame), true);
+      Serial.write((const uint8_t *)frame, frameLength);
+      return;
+  }
+}
+
+void RequestWeightResponse() {
+  if (failureMode == FM_DELAYED) {
+    if (!delayedResponsePending) {
+      delayedResponsePending = true;
+      delayedResponseAtMs = millis() + FAILURE_DELAY_MS;
+    }
+    return;
+  }
+
+  SendWeightNow();
+}
+
+void ProcessDelayedResponse() {
+  if (!delayedResponsePending) {
+    return;
+  }
+
+  if ((long)(millis() - delayedResponseAtMs) >= 0) {
+    delayedResponsePending = false;
+
+    // Envia uma resposta normal depois do atraso, sem reagendar.
+    FailureMode previousMode = failureMode;
+    failureMode = FM_NORMAL;
+    SendWeightNow();
+    failureMode = previousMode;
+  }
+}
+
+bool TrySetFailureMode(char modeCode) {
+  if (modeCode < '0' || modeCode > '6') {
+    return false;
+  }
+
+  failureMode = (FailureMode)(modeCode - '0');
+  delayedResponsePending = false;
+  return true;
 }
 
 void HandleCommand(char c) {
+  if (waitingFailureMode) {
+    TrySetFailureMode(c);
+    waitingFailureMode = false;
+    return;
+  }
+
   switch (c) {
     case ENQ:
-      SendWeight();
+      RequestWeightResponse();
       break;
 
     case 'T':
@@ -116,6 +237,11 @@ void HandleCommand(char c) {
 
     case 'M':
       flgMod = !flgMod;
+      break;
+
+    case 'F':
+      // O proximo byte seleciona o modo de falha: F0..F6.
+      waitingFailureMode = true;
       break;
   }
 }
@@ -143,7 +269,6 @@ bool DebouncedPressed(
       reading != stableState) {
     stableState = reading;
 
-    // INPUT_PULLUP: pressionado = LOW.
     if (stableState == LOW) {
       return true;
     }
@@ -191,9 +316,10 @@ void loop() {
   ProcessSerial();
   ProcessButtons();
   ProcessAutoMode();
+  ProcessDelayedResponse();
 
-  if (flgContinuo) {
-    SendWeight();
+  if (flgContinuo && !delayedResponsePending) {
+    RequestWeightResponse();
   }
 
   delay(LOOP_DELAY_MS);
