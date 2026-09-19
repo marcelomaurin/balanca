@@ -76,6 +76,12 @@ begin
 
   FHttpServer := TIdHTTPServer.Create(nil);
   FHttpServer.DefaultPort := HTTP_PORT;
+  FHttpServer.Bindings.Clear;
+  with FHttpServer.Bindings.Add do
+  begin
+    IP := FSettings.HttpBind;
+    Port := HTTP_PORT;
+  end;
   FHttpServer.OnCommandGet := @HttpCommandGet;
   FHttpServer.OnCommandOther := @HttpCommandOther;
 
@@ -116,8 +122,13 @@ begin
   FLastTick := GetTickCount64;
   FStarted := True;
 
-  WriteLn('http: porta ', HTTP_PORT);
-  WriteLn('websocket: porta ', WEBSOCKET_PORT, ' caminho /weight');
+  WriteLn('http: ', FSettings.HttpBind, ':', HTTP_PORT);
+  WriteLn('websocket: política bind ', FSettings.WebSocketBind,
+    ', porta ', WEBSOCKET_PORT, ' caminho /weight');
+  if Trim(FSettings.ApiKey) <> '' then
+    WriteLn('seguranca: API key habilitada')
+  else
+    WriteLn('seguranca: API key não configurada');
 end;
 
 procedure THeadlessScaleHost.Stop;
