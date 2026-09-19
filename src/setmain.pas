@@ -331,7 +331,13 @@ end;
 
 constructor TSetMain.Create;
 begin
-  Create(GetAppConfigDir(False));
+  inherited Create;
+
+  FPATH := IncludeTrailingPathDelimiter(GetAppConfigDir(False));
+  if not DirectoryExists(FPATH) then
+    ForceDirectories(FPATH);
+
+  CarregaContexto;
 end;
 
 constructor TSetMain.Create(const AConfigDir: string);
