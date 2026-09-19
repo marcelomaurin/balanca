@@ -70,6 +70,17 @@ type
     procedure SetSplash(Value: Boolean);
     procedure SetTipoImp(Value: Integer);
     procedure SetModeloImp(Value: Integer);
+    function GetEmpresa: string;
+    function GetLocalizacao: string;
+    function GetTipo1: string;
+    function GetTipo2: string;
+    function GetTipo3: string;
+    function GetContagem1: Integer;
+    function GetContagem2: Integer;
+    function GetContagem3: Integer;
+    function GetPainel: string;
+    function GetTipoImp: Integer;
+    function GetModeloImp: Integer;
   public
     constructor Create; overload;
     constructor Create(const AConfigDir: string); overload;
@@ -89,18 +100,18 @@ type
     property PARIDADE: Integer read FPARI write SetPARI;
     property STOPBIT: Integer read FSTBIT write SetSTBIT;
     property ProtocolId: string read FProtocolId write FProtocolId;
-    property Empresa: string read FLegacy.Empresa write SetEmpresa;
-    property Localizacao: string read FLegacy.Localizacao write SetLocalizacao;
-    property Tipo1: string read FLegacy.Tipo1 write SetTipo1;
-    property Tipo2: string read FLegacy.Tipo2 write SetTipo2;
-    property Tipo3: string read FLegacy.Tipo3 write SetTipo3;
-    property Contagem1: Integer read FLegacy.Contagem1 write SetContagem1;
-    property Contagem2: Integer read FLegacy.Contagem2 write SetContagem2;
-    property Contagem3: Integer read FLegacy.Contagem3 write SetContagem3;
-    property Painel: string read FLegacy.Painel write SetPainel;
+    property Empresa: string read GetEmpresa write SetEmpresa;
+    property Localizacao: string read GetLocalizacao write SetLocalizacao;
+    property Tipo1: string read GetTipo1 write SetTipo1;
+    property Tipo2: string read GetTipo2 write SetTipo2;
+    property Tipo3: string read GetTipo3 write SetTipo3;
+    property Contagem1: Integer read GetContagem1 write SetContagem1;
+    property Contagem2: Integer read GetContagem2 write SetContagem2;
+    property Contagem3: Integer read GetContagem3 write SetContagem3;
+    property Painel: string read GetPainel write SetPainel;
     property Splash: Boolean read FSplash write SetSplash;
-    property TipoImp: Integer read FLegacy.TipoImp write SetTipoImp;
-    property ModeloImp: Integer read FLegacy.ModeloImp write SetModeloImp;
+    property TipoImp: Integer read GetTipoImp write SetTipoImp;
+    property ModeloImp: Integer read GetModeloImp write SetModeloImp;
     property ReconnectEnabled: Boolean read FReconnectEnabled write FReconnectEnabled;
     property ResponseTimeoutMs: Integer read FResponseTimeoutMs write FResponseTimeoutMs;
     property ReconnectInitialMs: Integer read FReconnectInitialMs write FReconnectInitialMs;
@@ -145,6 +156,18 @@ procedure TSetMain.SetPainel(Value: string); begin FLegacy.Painel := Value; end;
 procedure TSetMain.SetSplash(Value: Boolean); begin FSplash := Value; end;
 procedure TSetMain.SetTipoImp(Value: Integer); begin FLegacy.TipoImp := Value; end;
 procedure TSetMain.SetModeloImp(Value: Integer); begin FLegacy.ModeloImp := Value; end;
+
+function TSetMain.GetEmpresa: string; begin Result := FLegacy.Empresa; end;
+function TSetMain.GetLocalizacao: string; begin Result := FLegacy.Localizacao; end;
+function TSetMain.GetTipo1: string; begin Result := FLegacy.Tipo1; end;
+function TSetMain.GetTipo2: string; begin Result := FLegacy.Tipo2; end;
+function TSetMain.GetTipo3: string; begin Result := FLegacy.Tipo3; end;
+function TSetMain.GetContagem1: Integer; begin Result := FLegacy.Contagem1; end;
+function TSetMain.GetContagem2: Integer; begin Result := FLegacy.Contagem2; end;
+function TSetMain.GetContagem3: Integer; begin Result := FLegacy.Contagem3; end;
+function TSetMain.GetPainel: string; begin Result := FLegacy.Painel; end;
+function TSetMain.GetTipoImp: Integer; begin Result := FLegacy.TipoImp; end;
+function TSetMain.GetModeloImp: Integer; begin Result := FLegacy.ModeloImp; end;
 
 procedure TSetMain.Default;
 begin
