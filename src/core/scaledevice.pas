@@ -20,6 +20,8 @@ type
     FLastRead: TDateTime;
     FOnWeight: TWeightEvent;
     procedure ProtocolWeight(Sender: TObject; const AWeight: string);
+    function GetDiscardedFrames: QWord;
+    function GetIgnoredBytes: QWord;
   public
     constructor Create(ASerial: TLazSerial);
     destructor Destroy; override;
@@ -35,6 +37,8 @@ type
     property LastFrame: string read FLastFrame;
     property LastError: string read FLastError;
     property LastRead: TDateTime read FLastRead;
+    property DiscardedFrames: QWord read GetDiscardedFrames;
+    property IgnoredBytes: QWord read GetIgnoredBytes;
     property OnWeight: TWeightEvent read FOnWeight write FOnWeight;
   end;
 
@@ -91,8 +95,6 @@ begin
     LData := FTransport.ReadAvailable;
     if LData <> '' then
     begin
-      FLastFrame := LData;
-      FLastRead := Now;
       FLastError := '';
       FProtocol.Feed(LData);
     end;
@@ -118,8 +120,21 @@ end;
 procedure TScaleDevice.ProtocolWeight(Sender: TObject; const AWeight: string);
 begin
   FLastWeight := AWeight;
+  FLastFrame := FProtocol.LastFrame;
+  FLastRead := Now;
+
   if Assigned(FOnWeight) then
     FOnWeight(Self, AWeight);
+end;
+
+function TScaleDevice.GetDiscardedFrames: QWord;
+begin
+  Result := FProtocol.DiscardedFrames;
+end;
+
+function TScaleDevice.GetIgnoredBytes: QWord;
+begin
+  Result := FProtocol.IgnoredBytes;
 end;
 
 end.
