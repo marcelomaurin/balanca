@@ -1,0 +1,209 @@
+unit headlesshost;
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+  Classes, SysUtils, LazSerial, lNet, lNetComponents, IdHTTPServer,
+  IdCustomHTTPServer, IdContext, setmain, scaleapplication, httprouter;
+
+type
+  { THeadlessScaleHost }
+  THeadlessScaleHost = class
+  private
+    FSettings: TSetMain;
+    FOwnsSettings: Boolean;
+    FSerial: TLazSerial;
+    FHttpServer: TIdHTTPServer;
+    FTcpServer: TLTCPComponent;
+    FScaleApp: TScaleApplication;
+    FRouter: TScaleHttpRouter;
+    FLastTick: QWord;
+    FTickIntervalMs: Cardinal;
+    FStarted: Boolean;
+
+    procedure SerialRxData(Sender: TObject);
+    procedure HttpCommandGet(AContext: TIdContext;
+      ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
+    procedure HttpCommandOther(AContext: TIdContext;
+      ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
+    procedure TcpConnect(ASocket: TLSocket);
+    procedure TcpDisconnect(ASocket: TLSocket);
+    procedure TcpReceive(ASocket: TLSocket);
+    procedure WeightReceived(Sender: TObject; const AWeight: string);
+  public
+    constructor Create(ASettings: TSetMain; AOwnsSettings: Boolean = False);
+    destructor Destroy; override;
+
+    procedure Start;
+    procedure Stop;
+    procedure Pump;
+
+    property Started: Boolean read FStarted;
+    property TickIntervalMs: Cardinal read FTickIntervalMs write FTickIntervalMs;
+  end;
+
+implementation
+
+const
+  HTTP_PORT = 8097;
+  WEBSOCKET_PORT = 8098;
+
+constructor THeadlessScaleHost.Create(ASettings: TSetMain; AOwnsSettings: Boolean);
+begin
+  inherited Create;
+
+  if not Assigned(ASettings) then
+    raise Exception.Create('Configuração não informada ao host headless');
+
+  FSettings := ASettings;
+  FOwnsSettings := AOwnsSettings;
+  FTickIntervalMs := 500;
+  FStarted := False;
+  FLastTick := 0;
+
+  FSerial := TLazSerial.Create(nil);
+  FSerial.OnRxData := @SerialRxData;
+
+  FScaleApp := TScaleApplication.Create(FSerial, FSettings);
+  FScaleApp.OnWeight := @WeightReceived;
+
+  FRouter := TScaleHttpRouter.Create(FScaleApp);
+
+  FHttpServer := TIdHTTPServer.Create(nil);
+  FHttpServer.DefaultPort := HTTP_PORT;
+  FHttpServer.OnCommandGet := @HttpCommandGet;
+  FHttpServer.OnCommandOther := @HttpCommandOther;
+
+  FTcpServer := TLTCPComponent.Create(nil);
+  FTcpServer.Port := WEBSOCKET_PORT;
+  FTcpServer.ReuseAddress := True;
+  FTcpServer.OnConnect := @TcpConnect;
+  FTcpServer.OnDisconnect := @TcpDisconnect;
+  FTcpServer.OnReceive := @TcpReceive;
+end;
+
+destructor THeadlessScaleHost.Destroy;
+begin
+  Stop;
+  FTcpServer.Free;
+  FHttpServer.Free;
+  FRouter.Free;
+  FScaleApp.Free;
+  FSerial.Free;
+
+  if FOwnsSettings then
+    FSettings.Free;
+
+  inherited Destroy;
+end;
+
+procedure THeadlessScaleHost.Start;
+begin
+  if FStarted then
+    Exit;
+
+  FHttpServer.Active := True;
+  FTcpServer.Listen(WEBSOCKET_PORT);
+
+  try
+    if FScaleApp.Connect then
+      WriteLn('serial: conectada em ', FSettings.COMPORT)
+    else
+      WriteLn(StdErr, 'serial: conexão não estabelecida em ', FSettings.COMPORT);
+  except
+    on E: Exception do
+      WriteLn(StdErr, 'serial: ', E.Message);
+  end;
+
+  FLastTick := GetTickCount64;
+  FStarted := True;
+
+  WriteLn('http: porta ', HTTP_PORT);
+  WriteLn('websocket: porta ', WEBSOCKET_PORT, ' caminho /weight');
+end;
+
+procedure THeadlessScaleHost.Stop;
+begin
+  if not FStarted then
+    Exit;
+
+  try
+    FScaleApp.Disconnect;
+  except
+    on E: Exception do
+      WriteLn(StdErr, 'erro ao desconectar serial: ', E.Message);
+  end;
+
+  FHttpServer.Active := False;
+  FTcpServer.Disconnect(True);
+  FStarted := False;
+end;
+
+procedure THeadlessScaleHost.Pump;
+var
+  NowTick: QWord;
+begin
+  if not FStarted then
+    Exit;
+
+  FTcpServer.CallAction;
+
+  NowTick := GetTickCount64;
+  if (NowTick - FLastTick) >= FTickIntervalMs then
+  begin
+    FLastTick := NowTick;
+
+    try
+      FScaleApp.Tick;
+    except
+      on E: Exception do
+        WriteLn(StdErr, 'tick: ', E.Message);
+    end;
+  end;
+end;
+
+procedure THeadlessScaleHost.SerialRxData(Sender: TObject);
+begin
+  try
+    FScaleApp.ProcessSerial;
+  except
+    on E: Exception do
+      WriteLn(StdErr, 'serial rx: ', E.Message);
+  end;
+end;
+
+procedure THeadlessScaleHost.HttpCommandGet(AContext: TIdContext;
+  ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
+begin
+  FRouter.HandleGet(ARequestInfo, AResponseInfo);
+end;
+
+procedure THeadlessScaleHost.HttpCommandOther(AContext: TIdContext;
+  ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
+begin
+  FRouter.HandleOther(ARequestInfo, AResponseInfo);
+end;
+
+procedure THeadlessScaleHost.TcpConnect(ASocket: TLSocket);
+begin
+  FScaleApp.WebSocketClientConnected(ASocket);
+end;
+
+procedure THeadlessScaleHost.TcpDisconnect(ASocket: TLSocket);
+begin
+  FScaleApp.WebSocketClientDisconnected(ASocket);
+end;
+
+procedure THeadlessScaleHost.TcpReceive(ASocket: TLSocket);
+begin
+  FScaleApp.WebSocketClientData(ASocket);
+end;
+
+procedure THeadlessScaleHost.WeightReceived(Sender: TObject; const AWeight: string);
+begin
+  WriteLn('peso: ', AWeight);
+end;
+
+end.
