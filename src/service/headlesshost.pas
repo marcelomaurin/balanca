@@ -137,7 +137,6 @@ begin
   end;
 
   FHttpServer.Active := False;
-  FTcpServer.Disconnect(True);
   FStarted := False;
 end;
 
