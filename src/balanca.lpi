@@ -47,7 +47,7 @@
         <PackageName Value="LCL"/>
       </Item7>
     </RequiredPackages>
-    <Units Count="12">
+    <Units Count="13">
       <Unit0>
         <Filename Value="balanca.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -109,6 +109,10 @@
         <Filename Value="core/scaledevice.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit11>
+      <Unit12>
+        <Filename Value="api/scaleapi.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit12>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -118,7 +122,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="core"/>
+      <OtherUnitFiles Value="core;api"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Linking>
