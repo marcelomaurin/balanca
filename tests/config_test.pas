@@ -66,11 +66,22 @@ begin
       AssertEquals(3000, Settings.ResponseTimeoutMs, 'timeout default');
       AssertEquals(1000, Settings.ReconnectInitialMs, 'backoff inicial default');
       AssertEquals(30000, Settings.ReconnectMaxMs, 'backoff máximo default');
+      AssertEquals('127.0.0.1', Settings.HttpBind, 'HTTP bind seguro default');
+      AssertEquals('127.0.0.1', Settings.WebSocketBind, 'WS bind seguro default');
+      AssertEquals('', Settings.ApiKey, 'API key default vazia');
+      AssertTrue(not Settings.AllowRemoteWithoutApiKey,
+        'acesso remoto sem chave deve ser bloqueado por default');
+      AssertTrue(Settings.CommandsEnabled, 'comandos habilitados por default');
 
       Settings.ReconnectEnabled := True;
       Settings.ResponseTimeoutMs := 4500;
       Settings.ReconnectInitialMs := 1500;
       Settings.ReconnectMaxMs := 20000;
+      Settings.HttpBind := '0.0.0.0';
+      Settings.WebSocketBind := '0.0.0.0';
+      Settings.ApiKey := 'teste-chave-123';
+      Settings.AllowRemoteWithoutApiKey := False;
+      Settings.CommandsEnabled := False;
       Settings.SalvaContexto;
     finally
       Settings.Free;
@@ -89,6 +100,12 @@ begin
       AssertEquals(4500, Reloaded.ResponseTimeoutMs, 'releitura timeout');
       AssertEquals(1500, Reloaded.ReconnectInitialMs, 'releitura backoff inicial');
       AssertEquals(20000, Reloaded.ReconnectMaxMs, 'releitura backoff máximo');
+      AssertEquals('0.0.0.0', Reloaded.HttpBind, 'releitura HTTP bind');
+      AssertEquals('0.0.0.0', Reloaded.WebSocketBind, 'releitura WS bind');
+      AssertEquals('teste-chave-123', Reloaded.ApiKey, 'releitura API key');
+      AssertTrue(not Reloaded.AllowRemoteWithoutApiKey,
+        'releitura allow remote');
+      AssertTrue(not Reloaded.CommandsEnabled, 'releitura commands enabled');
     finally
       Reloaded.Free;
     end;
