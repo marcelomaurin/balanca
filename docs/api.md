@@ -65,6 +65,12 @@ Exemplo resumido:
 }
 ```
 
+## GET /api/v1/metrics
+
+Retorna métricas operacionais cumulativas da aplicação, incluindo leituras, comandos, tentativas de conexão, reconexões, timeouts, erros seriais, requisições HTTP e conexões WebSocket.
+
+O endpoint usa a mesma autenticação da API.
+
 ## GET /api/v1/config
 
 Retorna configuração pública do serviço. A API não retorna o valor da chave.
