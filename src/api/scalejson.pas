@@ -132,9 +132,4 @@ begin
     '}';
 end;
 
-function BuildLegacyJson(const AWeight: string): string;
-begin
-  Result := '{"rs":{"peso":' + JsonString(AWeight) + '}}';
-end;
-
 end.
