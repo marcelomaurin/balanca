@@ -14,6 +14,7 @@ type
   TScaleProtocolFactory = class
   private
     class var FRegistry: TStringList;
+    class var FClasses: TList;
     class procedure EnsureRegistry; static;
   public
     class procedure RegisterProtocol(const AId: string;
@@ -33,6 +34,7 @@ begin
     FRegistry.CaseSensitive := False;
     FRegistry.Sorted := True;
     FRegistry.Duplicates := dupIgnore;
+    FClasses := TList.Create;
   end;
 end;
 
@@ -50,9 +52,12 @@ begin
 
   Index := FRegistry.IndexOf(Id);
   if Index >= 0 then
-    FRegistry.Objects[Index] := TObject(AProtocolClass)
+    FClasses[Index] := Pointer(AProtocolClass)
   else
-    FRegistry.AddObject(Id, TObject(AProtocolClass));
+  begin
+    Index := FRegistry.Add(Id);
+    FClasses.Insert(Index, Pointer(AProtocolClass));
+  end;
 end;
 
 class function TScaleProtocolFactory.CreateProtocol(
@@ -69,7 +74,7 @@ begin
   if Index < 0 then
     raise Exception.CreateFmt('Protocolo não registrado: %s', [AId]);
 
-  ProtocolClass := TScaleProtocolClass(FRegistry.Objects[Index]);
+  ProtocolClass := TScaleProtocolClass(FClasses[Index]);
   Result := ProtocolClass.Create;
 end;
 
@@ -88,6 +93,7 @@ begin
 end;
 
 finalization
+  FreeAndNil(TScaleProtocolFactory.FClasses);
   FreeAndNil(TScaleProtocolFactory.FRegistry);
 
 end.
