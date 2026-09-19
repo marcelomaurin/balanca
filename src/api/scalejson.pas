@@ -28,7 +28,6 @@ function BuildConfigJson(const APort: string; ABaudRate, ADataBit, AParity,
 function BuildNotFoundJson(const APath: string): string;
 function BuildCommandResultJson(const ACommand: string; AAccepted: Boolean;
   const AMessage: string): string;
-function BuildLegacyJson(const AWeight: string): string;
 
 implementation
 
