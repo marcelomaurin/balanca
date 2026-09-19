@@ -18,5 +18,6 @@ compile_and_run toledo_protocol_test
 compile_and_run commands_test
 compile_and_run config_test
 compile_and_run api_json_test
+compile_and_run protocol_factory_test
 
 echo "OK - toda a suite passou"
