@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+      - "refactor/**"
+      - "test/**"
+      - "ci/**"
+      - "docs/**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests-linux:
+    name: FPC tests (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Free Pascal
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fp-compiler fp-units-base fp-units-fcl
+
+      - name: Compiler version
+        run: fpc -iV
+
+      - name: Run test suite
+        run: sh tests/run_all.sh
+
+  tests-windows:
+    name: FPC tests (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Lazarus / FPC
+        uses: gcarreno/setup-lazarus@v3
+        with:
+          lazarus-version: "4.4"
+          with-cache: false
+
+      - name: Compiler version
+        shell: cmd
+        run: fpc -iV
+
+      - name: Run test suite
+        shell: cmd
+        run: tests\run_all.bat
+
+  repository-checks:
+    name: Repository checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check required documentation
+        run: |
+          test -f README.md
+          test -f docs/README.md
+          test -f docs/architecture.md
+          test -f docs/api.md
+          test -f docs/security.md
+          test -f docs/protocol-drivers.md
+          test -f tests/README.md
+
+      - name: Reject tracked build output
+        run: |
+          if git ls-files | grep -E "(^|/)(bin|lib)/|\.(o|ppu|compiled|exe)$"; then
+            echo "Build artifacts are tracked in Git."
+            exit 1
+          fi
+
+      - name: Check merge markers
+        run: |
+          if git grep -n -E "^(<<<<<<<|=======|>>>>>>>)" -- ":!*.md"; then
+            echo "Merge conflict markers found."
+            exit 1
+          fi
+
+  ci-success:
+    name: CI success
+    if: always()
+    needs:
+      - tests-linux
+      - tests-windows
+      - repository-checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required jobs
+        run: |
+          test "${{ needs.tests-linux.result }}" = "success"
+          test "${{ needs.tests-windows.result }}" = "success"
+          test "${{ needs.repository-checks.result }}" = "success"
