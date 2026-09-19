@@ -40,6 +40,10 @@ type
     FSplash: Boolean;
     FTipoImp: Integer;
     FModeloImp: Integer;
+    FReconnectEnabled: Boolean;
+    FResponseTimeoutMs: Integer;
+    FReconnectInitialMs: Integer;
+    FReconnectMaxMs: Integer;
 
     procedure Default;
     function ConfigFileName: string;
@@ -101,6 +105,10 @@ type
     property Splash: Boolean read FSplash write SetSplash;
     property TipoImp: Integer read FTipoImp write SetTipoImp;
     property ModeloImp: Integer read FModeloImp write SetModeloImp;
+    property ReconnectEnabled: Boolean read FReconnectEnabled write FReconnectEnabled;
+    property ResponseTimeoutMs: Integer read FResponseTimeoutMs write FResponseTimeoutMs;
+    property ReconnectInitialMs: Integer read FReconnectInitialMs write FReconnectInitialMs;
+    property ReconnectMaxMs: Integer read FReconnectMaxMs write FReconnectMaxMs;
     property Path: string read FPATH;
   end;
 
@@ -163,6 +171,11 @@ begin
   FPainel := '192.168.0.108';
   FTipoImp := 0;
   FModeloImp := 0;
+
+  FReconnectEnabled := True;
+  FResponseTimeoutMs := 3000;
+  FReconnectInitialMs := 1000;
+  FReconnectMaxMs := 30000;
 end;
 
 function TSetMain.ConfigFileName: string;
@@ -313,6 +326,18 @@ begin
     FPARI := Ini.ReadInteger('serial', 'paridade', FPARI);
     FSTBIT := Ini.ReadInteger('serial', 'stopbit', FSTBIT);
 
+    FReconnectEnabled := Ini.ReadBool('reconnect', 'enabled', FReconnectEnabled);
+    FResponseTimeoutMs := Ini.ReadInteger('reconnect', 'response_timeout_ms', FResponseTimeoutMs);
+    FReconnectInitialMs := Ini.ReadInteger('reconnect', 'initial_delay_ms', FReconnectInitialMs);
+    FReconnectMaxMs := Ini.ReadInteger('reconnect', 'max_delay_ms', FReconnectMaxMs);
+
+    if FResponseTimeoutMs < 500 then
+      FResponseTimeoutMs := 500;
+    if FReconnectInitialMs < 100 then
+      FReconnectInitialMs := 100;
+    if FReconnectMaxMs < FReconnectInitialMs then
+      FReconnectMaxMs := FReconnectInitialMs;
+
     FEmpresa := Ini.ReadString('legado', 'empresa', FEmpresa);
     FLocalizacao := Ini.ReadString('legado', 'localizacao', FLocalizacao);
     FTipo1 := Ini.ReadString('legado', 'tipo1', FTipo1);
@@ -373,6 +398,11 @@ begin
     Ini.WriteInteger('serial', 'databit', FDTBIT);
     Ini.WriteInteger('serial', 'paridade', FPARI);
     Ini.WriteInteger('serial', 'stopbit', FSTBIT);
+
+    Ini.WriteBool('reconnect', 'enabled', FReconnectEnabled);
+    Ini.WriteInteger('reconnect', 'response_timeout_ms', FResponseTimeoutMs);
+    Ini.WriteInteger('reconnect', 'initial_delay_ms', FReconnectInitialMs);
+    Ini.WriteInteger('reconnect', 'max_delay_ms', FReconnectMaxMs);
 
     // Campos mantidos por compatibilidade enquanto não forem removidos
     // definitivamente da aplicação.
