@@ -1,3 +1,4 @@
+
 #define ENQ  0x05
 #define ACK  0x06
 #define NAK  0x25
@@ -23,6 +24,7 @@ char strTara[6];
 int pushButtonA = 13;
 int pushButtonB = 7;
 int pushButtonC = 8;
+
 
 int flgContinuo;
 int flgMod;
@@ -64,6 +66,7 @@ char Checksum(String info){
   return dado;
 }
 
+
 void EnviaPeso(){     
     dtostrf((pesototal+peso-tara),7,3,strPeso);
     //scanf(strPeso,"%6d",(pesototal+peso-tara));
@@ -73,6 +76,7 @@ void EnviaPeso(){
     buffer.replace(" ","0");
     Serial.println(buffer);
 }
+
 
 void LeBotaoB(){
    int buttonStateB = digitalRead(pushButtonB);
@@ -92,7 +96,10 @@ void LeBotaoA(){
 }
 
 void loop() {
+  //Serial.println("Leu");
+  // if there's any serial available, read it:
   while (Serial.available() > 0) {
+    //Recebe o CMD   
     char c = Serial.read();
     if (c==ENQ){
       EnviaPeso();  
@@ -109,30 +116,39 @@ void loop() {
     if (c=='C'){
       flgContinuo = ~flgContinuo;  
       if (flgContinuo!=0){
+        //Serial.println("Continuo!");
       }
     }
     if (c=='N'){
-       pesototal = pesototal + peso;
+       //Serial.println("Novo valor");
+       pesototal = pesototal + peso; /*Acumula peso anterior*/ 
        peso = random(1000)/100;
     }    
     if (c=='M'){
        flgMod = ~flgMod;  
     }
+    
   }
-
+  //Serial.println("OK!");
   if (flgContinuo!=0) {
     EnviaPeso();
   }
 
   if (flgMod!=0) {
+
     diferencadetempo = (millis() - meutempo)/1000;
+    //Serial.print("Tempo ");
+    //Serial.println(diferencadetempo);
     if (diferencadetempo > DeltaT) {
         meutempo = millis();
-        pesototal = pesototal + peso;
+        
+        //Serial.println("Novo valor");
+        pesototal = pesototal + peso; /*Acumula peso anterior*/ 
         peso = random(1000)/100;        
     }
   }  
   LeBotaoA();
   LeBotaoB();
   delay(1000);
+  //Serial.println("OK!");
 }
