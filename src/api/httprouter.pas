@@ -52,7 +52,7 @@ begin
   begin
     AResponseInfo.ResponseNo := 200;
     AResponseInfo.ContentType := 'application/json; charset=utf-8';
-    AResponseInfo.ContentText := FApp.Api.StatusJson;
+    AResponseInfo.ContentText := FApp.StatusJson;
   end
   else if SameText(Path, '/api/v1/config') then
   begin

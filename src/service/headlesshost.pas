@@ -32,6 +32,8 @@ type
     procedure TcpDisconnect(ASocket: TLSocket);
     procedure TcpReceive(ASocket: TLSocket);
     procedure WeightReceived(Sender: TObject; const AWeight: string);
+    procedure ConnectionStateChanged(Sender: TObject;
+      AState: TScaleConnectionState; const AMessage: string);
   public
     constructor Create(ASettings: TSetMain; AOwnsSettings: Boolean = False);
     destructor Destroy; override;
@@ -68,6 +70,7 @@ begin
 
   FScaleApp := TScaleApplication.Create(FSerial, FSettings);
   FScaleApp.OnWeight := @WeightReceived;
+  FScaleApp.OnConnectionState := @ConnectionStateChanged;
 
   FRouter := TScaleHttpRouter.Create(FScaleApp);
 
@@ -107,15 +110,8 @@ begin
   FHttpServer.Active := True;
   FTcpServer.Listen(WEBSOCKET_PORT);
 
-  try
-    if FScaleApp.Connect then
-      WriteLn('serial: conectada em ', FSettings.COMPORT)
-    else
-      WriteLn(StdErr, 'serial: conexão não estabelecida em ', FSettings.COMPORT);
-  except
-    on E: Exception do
-      WriteLn(StdErr, 'serial: ', E.Message);
-  end;
+  if not FScaleApp.Connect then
+    WriteLn(StdErr, 'serial: conexão inicial falhou; reconexão automática ativa');
 
   FLastTick := GetTickCount64;
   FStarted := True;
@@ -203,6 +199,19 @@ end;
 procedure THeadlessScaleHost.WeightReceived(Sender: TObject; const AWeight: string);
 begin
   WriteLn('peso: ', AWeight);
+end;
+
+procedure THeadlessScaleHost.ConnectionStateChanged(Sender: TObject;
+  AState: TScaleConnectionState; const AMessage: string);
+const
+  STATE_NAMES: array[TScaleConnectionState] of string = (
+    'stopped',
+    'connecting',
+    'connected',
+    'waiting_reconnect'
+  );
+begin
+  WriteLn('conexao: ', STATE_NAMES[AState], ' - ', AMessage);
 end;
 
 end.
