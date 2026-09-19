@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Buttons,
-  ExtCtrls, Menus, PopupNotifier, LazSerial, FileUtil, LazFileUtils, LazSynaSer,
+  ExtCtrls, Menus, PopupNotifier, LazSerial, LazSynaSer,
   synaser, IdHTTPServer, lNetComponents, LedNumber, setmain, registro, peso,
   setup, lNet, log, IdCustomHTTPServer, IdCompressionIntercept,
   IdSSLOpenSSL, IdSchedulerOfThreadDefault, IdContext, scaleapplication,
@@ -82,8 +82,6 @@ type
     FHttpRouter: TScaleHttpRouter;
     FWebSocketStarted: Boolean;
     procedure ScaleWeight(Sender: TObject; const AWeight: string);
-    procedure ListDev();
-    function PegaSerial() : String;
     procedure SalvarContexto();
     procedure Setup();
   public
@@ -120,7 +118,6 @@ begin
   frmRegistrar.Identifica();
   frmpeso := TFrmpeso.create(self);
   frmpeso.show();
-  ListDev();
   lbVersao.Caption:= Version;
 end;
 
@@ -150,17 +147,10 @@ end;
 procedure Tfrmmain.LazSerial1BlockSerialStatus(Sender: TObject;
   Reason: THookSerialReason; const Value: string);
 begin
-  if(LazSerial1.Active) then
-  begin
-    //Shape1.Color:= clRed;
-    lbstatus.Caption:= 'Open';
-  end
+  if Assigned(FScaleApp) and FScaleApp.Snapshot.Connected then
+    lbstatus.Caption := 'Conectado'
   else
-  begin
-    //Shape1.Color:= clwhite;
-    lbstatus.Caption:= 'close';
-  end;
-  Application.ProcessMessages();
+    lbstatus.Caption := 'Desconectado';
 end;
 
 procedure Tfrmmain.LazSerial1RxData(Sender: TObject);
@@ -304,31 +294,6 @@ end;
 procedure Tfrmmain.btTestaClick(Sender: TObject);
 begin
 
-end;
-
-procedure Tfrmmain.ListDev();
-begin
-  //cbserial.Text :=  PegaSerial();
-end;
-
-function Tfrmmain.PegaSerial(): String;
-var
-  ListOfFiles: TStringList;
-  Directory : string;
-  posicao : integer;
-begin
-
-
-  ListOfFiles := TStringList.create();
-  {$IFDEF LINUX}
-  Directory := '/dev';
-  FindAllFiles ( ListOfFiles , Directory ,  '*' ,  false ) ;
-  posicao := 0;
-  //ListOfFiles.Find('ttyS',posicao);
-  //ListOfFiles.Sorted := true;
-  cbserial.items.Clear;
-  cbserial.Items.text:= ListOfFiles.Text;
-  {$ENDIF}
 end;
 
 procedure Tfrmmain.SalvarContexto();
