@@ -1,0 +1,117 @@
+name: Lazarus Build (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      lazarus_version:
+        description: Lazarus version
+        required: true
+        default: "4.4"
+        type: string
+      include_packages:
+        description: OPM packages to install before build
+        required: false
+        default: "Indy10,lNet,LazSerial,IndustrialStuff"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-linux:
+    name: Lazarus build (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Lazarus and packages
+        uses: gcarreno/setup-lazarus@v3
+        with:
+          lazarus-version: "${{ inputs.lazarus_version }}"
+          include-packages: "${{ inputs.include_packages }}"
+          with-cache: false
+
+      - name: Environment
+        run: |
+          fpc -iV
+          lazbuild --version
+
+      - name: Run core tests
+        run: sh tests/run_all.sh
+
+      - name: Build desktop
+        run: lazbuild -B src/balanca.lpi
+
+      - name: Build headless
+        run: lazbuild -B src/service/balanca_service.lpi
+
+      - name: Collect Linux artifacts
+        if: success()
+        run: |
+          mkdir -p dist/linux
+          test -f src/balanca && cp src/balanca dist/linux/
+          test -f src/service/balanca_service && cp src/service/balanca_service dist/linux/
+          cp README.md dist/linux/
+          cp -r docs dist/linux/docs
+
+      - name: Upload Linux artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: balanca-linux
+          path: dist/linux
+          if-no-files-found: error
+
+  build-windows:
+    name: Lazarus build (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Lazarus and packages
+        uses: gcarreno/setup-lazarus@v3
+        with:
+          lazarus-version: "${{ inputs.lazarus_version }}"
+          include-packages: "${{ inputs.include_packages }}"
+          with-cache: false
+
+      - name: Environment
+        shell: cmd
+        run: |
+          fpc -iV
+          lazbuild --version
+
+      - name: Run core tests
+        shell: cmd
+        run: tests\run_all.bat
+
+      - name: Build desktop
+        shell: cmd
+        run: lazbuild -B src\balanca.lpi
+
+      - name: Build headless
+        shell: cmd
+        run: lazbuild -B src\service\balanca_service.lpi
+
+      - name: Collect Windows artifacts
+        if: success()
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path dist\windows | Out-Null
+          Copy-Item src\balanca.exe dist\windows\
+          Copy-Item src\service\balanca_service.exe dist\windows\
+          Copy-Item README.md dist\windows\
+          Copy-Item docs dist\windows\docs -Recurse
+          Copy-Item instalador\windows dist\windows\installer -Recurse
+
+      - name: Upload Windows artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: balanca-windows
+          path: dist/windows
+          if-no-files-found: error
