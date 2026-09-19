@@ -34,6 +34,8 @@ type
     FLastFrame: string;
     FLastError: string;
     FLastRead: TDateTime;
+    FDiscardedFrames: QWord;
+    FIgnoredBytes: QWord;
     FOnWeight: TWeightEvent;
     procedure ProtocolWeight(Sender: TObject; const AWeight: string);
     function GetDiscardedFrames: QWord;
@@ -84,6 +86,8 @@ begin
   FLastFrame := '';
   FLastError := '';
   FLastRead := 0;
+  FDiscardedFrames := 0;
+  FIgnoredBytes := 0;
 end;
 
 destructor TScaleDevice.Destroy;
@@ -147,6 +151,7 @@ end;
 procedure TScaleDevice.ProcessIncoming;
 var
   LData: string;
+  Discarded, Ignored: QWord;
 begin
   try
     LData := FTransport.ReadAvailable;
@@ -159,6 +164,16 @@ begin
         FLock.Release;
       end;
       FProtocol.Feed(LData);
+      Discarded := FProtocol.DiscardedFrames();
+      Ignored := FProtocol.IgnoredBytes();
+
+      FLock.Acquire;
+      try
+        FDiscardedFrames := Discarded;
+        FIgnoredBytes := Ignored;
+      finally
+        FLock.Release;
+      end;
     end;
   except
     on E: Exception do
@@ -200,6 +215,8 @@ begin
     FLastFrame := '';
     FLastRead := 0;
     FLastError := '';
+    FDiscardedFrames := 0;
+    FIgnoredBytes := 0;
   finally
     FLock.Release;
   end;
@@ -292,8 +309,8 @@ begin
     Result.LastFrame := FLastFrame;
     Result.LastError := FLastError;
     Result.LastRead := FLastRead;
-    Result.DiscardedFrames := FProtocol.DiscardedFrames();
-    Result.IgnoredBytes := FProtocol.IgnoredBytes();
+    Result.DiscardedFrames := FDiscardedFrames;
+    Result.IgnoredBytes := FIgnoredBytes;
     Result.ProtocolId := FProtocol.ProtocolId();
     Result.ProtocolName := FProtocol.DisplayName();
   finally
@@ -318,12 +335,22 @@ end;
 
 function TScaleDevice.GetDiscardedFrames: QWord;
 begin
-  Result := FProtocol.DiscardedFrames();
+  FLock.Acquire;
+  try
+    Result := FDiscardedFrames;
+  finally
+    FLock.Release;
+  end;
 end;
 
 function TScaleDevice.GetIgnoredBytes: QWord;
 begin
-  Result := FProtocol.IgnoredBytes();
+  FLock.Acquire;
+  try
+    Result := FIgnoredBytes;
+  finally
+    FLock.Release;
+  end;
 end;
 
 function TScaleDevice.GetProtocolId: string;
