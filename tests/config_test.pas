@@ -32,7 +32,7 @@ var
   Settings, Reloaded: TSetMain;
 begin
   Dir := IncludeTrailingPathDelimiter(GetTempDir(False)) +
-    'balanca_cfg_test_' + IntToStr(GetProcessID);
+    'balanca_cfg_test';
 
   if DirectoryExists(Dir) then
     RemoveTree(Dir);
