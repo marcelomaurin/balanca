@@ -95,8 +95,6 @@ begin
     LData := FTransport.ReadAvailable;
     if LData <> '' then
     begin
-      FLastFrame := LData;
-      FLastRead := Now;
       FLastError := '';
       FProtocol.Feed(LData);
     end;
