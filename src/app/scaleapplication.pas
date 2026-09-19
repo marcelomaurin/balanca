@@ -104,16 +104,16 @@ begin
   FWebSocket := TWeightWebSocketServer.Create;
 
   FDesiredActive := False;
-  FAutoReconnect := True;
+  FAutoReconnect := FSettings.ReconnectEnabled;
   FConnectionState := scsStopped;
   FConnectionMessage := 'Parado';
   FLastResponseTick := 0;
   FConnectedSinceTick := 0;
   FNextReconnectTick := 0;
   FReconnectAttempts := 0;
-  FResponseTimeoutMs := 3000;
-  FReconnectInitialMs := 1000;
-  FReconnectMaxMs := 30000;
+  FResponseTimeoutMs := Cardinal(FSettings.ResponseTimeoutMs);
+  FReconnectInitialMs := Cardinal(FSettings.ReconnectInitialMs);
+  FReconnectMaxMs := Cardinal(FSettings.ReconnectMaxMs);
 
   ApplySettings;
 end;
