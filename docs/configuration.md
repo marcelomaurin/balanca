@@ -1,11 +1,10 @@
 # Configuração da aplicação
 
-A configuração continua sendo armazenada em `main.cfg`, dentro do diretório
-retornado por `GetAppConfigDir(False)`.
+A configuração é armazenada em `main.cfg`, no diretório retornado por `GetAppConfigDir(False)` ou no diretório informado por `--config-dir` no modo headless.
 
-A partir desta versão, o arquivo usa formato INI por meio de `TIniFile`.
+O arquivo usa formato INI por meio de `TIniFile`.
 
-## Exemplo
+## Exemplo completo
 
 ```ini
 [geral]
@@ -25,6 +24,22 @@ databit=0
 paridade=0
 stopbit=0
 
+[scale]
+protocol=toledo
+
+[reconnect]
+enabled=1
+response_timeout_ms=3000
+initial_delay_ms=1000
+max_delay_ms=30000
+
+[security]
+http_bind=127.0.0.1
+websocket_bind=127.0.0.1
+api_key=
+allow_remote_without_api_key=0
+commands_enabled=1
+
 [legado]
 empresa=maurinsoft
 localizacao=nothing
@@ -39,7 +54,49 @@ tipoimp=0
 modeloimp=0
 ```
 
-No Linux, o valor padrão da porta é `/dev/ttyS0`.
+No Linux, o valor padrão da porta serial é `/dev/ttyS0`.
+
+## Seção [serial]
+
+Os valores de baud rate, data bits, paridade e stop bits continuam armazenados como índices compatíveis com `TLazSerial`, preservando a configuração histórica do projeto.
+
+## Seção [scale]
+
+Seleciona o driver de protocolo:
+
+```ini
+[scale]
+protocol=toledo
+```
+
+Aliases atualmente registrados:
+
+```text
+toledo
+prix3
+toledo-prix3
+```
+
+## Seção [reconnect]
+
+Configura a supervisão da conexão:
+
+- `enabled`: habilita reconexão automática;
+- `response_timeout_ms`: tempo máximo sem frame válido;
+- `initial_delay_ms`: atraso da primeira tentativa;
+- `max_delay_ms`: teto do backoff.
+
+## Seção [security]
+
+Configura exposição de rede e autenticação:
+
+- `http_bind`: endereço HTTP;
+- `websocket_bind`: política de bind WebSocket;
+- `api_key`: chave opcional;
+- `allow_remote_without_api_key`: permite explicitamente acesso remoto sem chave;
+- `commands_enabled`: habilita/desabilita comandos POST.
+
+O padrão é local-only (`127.0.0.1`).
 
 ## Migração automática
 
@@ -60,22 +117,16 @@ Ao iniciar:
 3. valores inválidos usam o valor padrão em vez de provocar exceção;
 4. o arquivo é regravado automaticamente no formato INI.
 
-A migração mantém os nomes e valores existentes sempre que possível.
-
 ## Segurança de leitura
 
-O carregamento usa valores padrão para campos ausentes. A migração do formato
-legado usa `TryStrToInt` e interpretação tolerante de booleanos, evitando que
-um `main.cfg` parcialmente corrompido impeça a inicialização da aplicação.
+Campos ausentes usam valores padrão. Inteiros legados usam `TryStrToInt`, e booleanos antigos são interpretados de forma tolerante.
 
 ## Organização
 
-As seções têm responsabilidades separadas:
-
-- `geral`: comportamento da aplicação;
+- `geral`: comportamento geral;
 - `janela`: posição da interface;
-- `serial`: comunicação com a balança;
-- `legado`: campos históricos ainda mantidos para compatibilidade.
-
-Os campos em `legado` poderão ser eliminados futuramente após confirmar que
-não são usados por integrações externas.
+- `serial`: comunicação serial;
+- `scale`: protocolo da balança;
+- `reconnect`: resiliência da conexão;
+- `security`: exposição de rede e autenticação;
+- `legado`: campos históricos mantidos temporariamente.
