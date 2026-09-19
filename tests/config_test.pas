@@ -77,6 +77,10 @@ begin
       AssertTrue(Pos('balanca.log', Settings.LogFile) > 0,
         'arquivo de log default');
       AssertTrue(not Settings.LogConsole, 'console de log default');
+      AssertTrue(Settings.LegacyHttpEnabled, 'HTTP legado default');
+      AssertTrue(Settings.LegacyConfigMigration, 'migração legada default');
+      AssertEquals('maurinsoft', Settings.Empresa, 'fachada legado empresa');
+      AssertEquals('Normal', Settings.Legacy.Tipo1, 'objeto legado tipo1');
 
       Settings.ReconnectEnabled := True;
       Settings.ResponseTimeoutMs := 4500;
@@ -91,6 +95,9 @@ begin
       Settings.LogLevel := 'debug';
       Settings.LogFile := IncludeTrailingPathDelimiter(Dir) + 'teste.log';
       Settings.LogConsole := True;
+      Settings.LegacyHttpEnabled := False;
+      Settings.LegacyConfigMigration := False;
+      Settings.Empresa := 'EmpresaTeste';
       Settings.SalvaContexto;
     finally
       Settings.Free;
@@ -120,6 +127,9 @@ begin
       AssertEquals(IncludeTrailingPathDelimiter(Dir) + 'teste.log',
         Reloaded.LogFile, 'releitura log file');
       AssertTrue(Reloaded.LogConsole, 'releitura log console');
+      AssertTrue(not Reloaded.LegacyHttpEnabled, 'releitura HTTP legado');
+      AssertTrue(not Reloaded.LegacyConfigMigration, 'releitura migração legada');
+      AssertEquals('EmpresaTeste', Reloaded.Empresa, 'releitura fachada legado');
     finally
       Reloaded.Free;
     end;
