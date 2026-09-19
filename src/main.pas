@@ -82,6 +82,8 @@ type
     FHttpRouter: TScaleHttpRouter;
     FWebSocketStarted: Boolean;
     procedure ScaleWeight(Sender: TObject; const AWeight: string);
+    procedure ScaleConnectionState(Sender: TObject;
+      AState: TScaleConnectionState; const AMessage: string);
     procedure SalvarContexto();
     procedure Setup();
   public
@@ -102,6 +104,36 @@ begin
   frmPeso.Peso(AWeight);
 end;
 
+procedure Tfrmmain.ScaleConnectionState(Sender: TObject;
+  AState: TScaleConnectionState; const AMessage: string);
+begin
+  case AState of
+    scsStopped:
+      begin
+        lbstatus.Caption := 'Desconectado';
+        TrayIcon1.Hint := 'Disconnected';
+      end;
+    scsConnecting:
+      begin
+        lbstatus.Caption := 'Conectando...';
+        TrayIcon1.Hint := 'Connecting';
+      end;
+    scsConnected:
+      begin
+        lbstatus.Caption := 'Conectado';
+        TrayIcon1.Hint := 'Connected';
+      end;
+    scsWaitingReconnect:
+      begin
+        lbstatus.Caption := 'Reconectando...';
+        TrayIcon1.Hint := 'Reconnecting';
+      end;
+  end;
+
+  if Assigned(frmlog) and (AMessage <> '') then
+    frmlog.Log(AMessage);
+end;
+
 procedure Tfrmmain.FormCreate(Sender: TObject);
 begin
   frmlog := TfrmLog.create(self);
@@ -109,6 +141,7 @@ begin
   Fsetmain := TSetmain.create();
   FScaleApp := TScaleApplication.Create(LazSerial1, Fsetmain);
   FScaleApp.OnWeight := @ScaleWeight;
+  FScaleApp.OnConnectionState := @ScaleConnectionState;
   FHttpRouter := TScaleHttpRouter.Create(FScaleApp);
   FWebSocketStarted := False;
   self.left := Fsetmain.posx;
@@ -240,31 +273,20 @@ end;
 
 procedure Tfrmmain.btConectarClick(Sender: TObject);
 begin
-  try
-    if not FScaleApp.Connect then
-      raise Exception.Create('Não foi possível conectar à balança');
+  Timer1.Enabled := True;
+  TrayIcon1.Visible := True;
+  IdHTTPServer1.Active := True;
 
-    Timer1.Enabled := True;
-    TrayIcon1.Visible := True;
-    TrayIcon1.Hint := 'Connected';
-    IdHTTPServer1.Active := True;
-
-    if not FWebSocketStarted then
-    begin
-      LTCPComponent1.Listen(PortWebSocket);
-      FWebSocketStarted := True;
-    end;
-
-    Hide;
-  except
-    on E: Exception do
-    begin
-      Timer1.Enabled := False;
-      lbstatus.Caption := 'Erro';
-      TrayIcon1.Hint := 'Disconnected';
-      MessageDlg('Erro ao conectar à balança', E.Message, mtError, [mbOK], 0);
-    end;
+  if not FWebSocketStarted then
+  begin
+    LTCPComponent1.Listen(PortWebSocket);
+    FWebSocketStarted := True;
   end;
+
+  if not FScaleApp.Connect then
+    lbstatus.Caption := 'Reconectando...';
+
+  Hide;
 end;
 
 procedure Tfrmmain.btDesconectar1Click(Sender: TObject);
