@@ -1,12 +1,32 @@
 # API HTTP v1
 
-O servidor HTTP permanece na porta `8097`.
+O servidor HTTP usa por padrão a porta `8097` e bind `127.0.0.1`.
+
+Consulte [security.md](security.md) antes de expor a API em rede.
+
+## Autenticação
+
+Quando `api_key` estiver configurada, use preferencialmente:
+
+```http
+X-API-Key: sua-chave
+```
+
+Também são aceitos:
+
+```http
+Authorization: Bearer sua-chave
+```
+
+e, para clientes simples:
+
+```text
+?api_key=sua-chave
+```
 
 ## GET /api/v1/weight
 
-Retorna o último peso válido conhecido.
-
-Exemplo:
+Retorna o último peso válido:
 
 ```json
 {
@@ -18,9 +38,9 @@ Exemplo:
 
 ## GET /api/v1/status
 
-Retorna o estado operacional da balança e do parser.
+Retorna estado da balança, parser, protocolo e supervisor.
 
-Exemplo:
+Exemplo resumido:
 
 ```json
 {
@@ -29,15 +49,27 @@ Exemplo:
   "last_read": "2026-09-19T11:30:00",
   "last_error": "",
   "discarded_frames": 0,
-  "ignored_bytes": 2
+  "ignored_bytes": 2,
+  "protocol": {
+    "id": "toledo",
+    "name": "Toledo / PRIX compatível"
+  },
+  "supervisor": {
+    "desired_active": true,
+    "auto_reconnect": true,
+    "state": "connected",
+    "message": "Conectado em COM13",
+    "reconnect_attempts": 0,
+    "response_timeout_ms": 3000
+  }
 }
 ```
 
 ## GET /api/v1/config
 
-Retorna a configuração serial atualmente cadastrada.
+Retorna configuração pública do serviço. A API não retorna o valor da chave.
 
-Exemplo:
+Exemplo resumido:
 
 ```json
 {
@@ -49,35 +81,72 @@ Exemplo:
     "stopbit_index": 0
   },
   "server": {
-    "port": 8097
+    "port": 8097,
+    "websocket_port": 8098,
+    "websocket_path": "/weight"
+  },
+  "scale": {
+    "protocol": "toledo",
+    "protocol_name": "Toledo / PRIX compatível"
+  },
+  "security": {
+    "http_bind": "127.0.0.1",
+    "websocket_bind": "127.0.0.1",
+    "api_key_enabled": false,
+    "allow_remote_without_api_key": false,
+    "commands_enabled": true
   }
 }
 ```
 
-Os valores de baud rate, data bits, paridade e stop bits permanecem como índices
-dos enums usados por `TLazSerial`, preservando compatibilidade com a configuração
-existente.
+## POST /api/v1/commands/read
 
-## Compatibilidade
+Solicita uma leitura.
 
-As rotas `/` e `/legacy` preservam o formato histórico da aplicação:
-HTML contendo o objeto:
+Resposta quando enfileirado:
+
+```json
+{
+  "command": "read",
+  "accepted": true,
+  "message": "queued"
+}
+```
+
+## Outros comandos
+
+Rotas padronizadas:
+
+```text
+POST /api/v1/commands/tare
+POST /api/v1/commands/zero
+POST /api/v1/commands/print
+POST /api/v1/commands/continuous_start
+POST /api/v1/commands/continuous_stop
+```
+
+O fato de a rota existir não significa que o driver ativo suporte o comando. No driver Toledo atual, apenas `read` está confirmado.
+
+Quando o comando não é suportado, a resposta é HTTP `501`.
+
+## Códigos relevantes
+
+- `200`: consulta executada;
+- `202`: comando aceito;
+- `401`: API key inválida ou ausente;
+- `403`: comandos remotos desabilitados;
+- `404`: rota/comando inexistente;
+- `405`: método HTTP incorreto;
+- `409`: balança indisponível;
+- `501`: comando não suportado pelo protocolo;
+- `503`: configuração de segurança remota inválida.
+
+## Compatibilidade legada
+
+As rotas `/` e `/legacy` mantêm a resposta histórica em HTML contendo:
 
 ```json
 {"rs":{"peso":"+001.250"}}
 ```
 
-Isso permite migrar consumidores antigos gradualmente para a API v1.
-
-## Erros
-
-Rotas inexistentes retornam HTTP 404 com JSON:
-
-```json
-{
-  "error": "not_found",
-  "path": "/rota/inexistente"
-}
-```
-
-Todas as rotas `/api/v1/*` usam `Content-Type: application/json; charset=utf-8`.
+Isso permite migrar aplicações antigas gradualmente.
