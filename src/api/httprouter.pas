@@ -172,6 +172,15 @@ begin
   end
   else if SameText(Path, '/') or SameText(Path, '/legacy') then
   begin
+    if not FApp.Settings.LegacyHttpEnabled then
+    begin
+      AResponseInfo.ResponseNo := 404;
+      AResponseInfo.ContentType := 'application/json; charset=utf-8';
+      AResponseInfo.ContentText := FApp.Api.NotFoundJson(Path);
+      Exit;
+    end;
+
+    FApp.Logger.Debug('legacy', 'Resposta HTTP de compatibilidade: ' + Path);
     AResponseInfo.ResponseNo := 200;
     AResponseInfo.ContentType := 'text/html; charset=utf-8';
     AResponseInfo.ContentText :=
