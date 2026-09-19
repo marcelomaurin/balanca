@@ -42,7 +42,7 @@ end;
 
 procedure TfrmLog.FormDestroy(Sender: TObject);
 begin
-  Salvar();
+  // O arquivo é mantido pelo logger central; a janela apenas o visualiza.
 end;
 
 procedure TfrmLog.MenuItem1Click(Sender: TObject);
@@ -56,28 +56,8 @@ begin
 end;
 
 procedure TfrmLog.Salvar();
-var
-  arquivo :string;
-  FPath : String;
 begin
-  {$IFDEF LINUX}
-      //Fpath :='/home/';
-      //Fpath := GetUserDir()
-      Fpath :=GetAppConfigDir(false);
-      if not(FileExists(FPATH)) then
-      begin
-         createdir(fpath);
-      end;
-  {$ENDIF}
-  {$IFDEF WINDOWS}
-      Fpath :=GetAppConfigDir(false);
-      if not(FileExists(FPATH)) then
-      begin
-         createdir(fpath);
-      end;
-  {$ENDIF}
-  arquivo :=  fpath + 'fila.log';
-  meLog.Lines.SaveToFile(arquivo);
+  // Compatibilidade: persistência agora é responsabilidade de TAppLogger.
 end;
 
 procedure TfrmLog.Carregar();
@@ -101,7 +81,7 @@ begin
          createdir(fpath);
       end;
   {$ENDIF}
-  arquivo := fpath + 'fila.log';
+  arquivo := IncludeTrailingPathDelimiter(Fpath) + 'balanca.log';
   if (FileExists(arquivo)) then
   begin
     meLog.Lines.LoadFromFile(arquivo);
