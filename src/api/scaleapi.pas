@@ -94,25 +94,33 @@ begin
 end;
 
 function TScaleApi.WeightJson: string;
+var
+  Snapshot: TScaleSnapshot;
 begin
+  Snapshot := FDevice.GetSnapshot;
+
   Result :=
     '{' +
-      '"weight":' + JsonString(FDevice.LastWeight) + ',' +
-      '"connected":' + JsonBoolean(FDevice.IsConnected) + ',' +
-      '"last_read":' + JsonString(IsoDateTime(FDevice.LastRead)) +
+      '"weight":' + JsonString(Snapshot.LastWeight) + ',' +
+      '"connected":' + JsonBoolean(Snapshot.Connected) + ',' +
+      '"last_read":' + JsonString(IsoDateTime(Snapshot.LastRead)) +
     '}';
 end;
 
 function TScaleApi.StatusJson: string;
+var
+  Snapshot: TScaleSnapshot;
 begin
+  Snapshot := FDevice.GetSnapshot;
+
   Result :=
     '{' +
-      '"connected":' + JsonBoolean(FDevice.IsConnected) + ',' +
-      '"weight":' + JsonString(FDevice.LastWeight) + ',' +
-      '"last_read":' + JsonString(IsoDateTime(FDevice.LastRead)) + ',' +
-      '"last_error":' + JsonString(FDevice.LastError) + ',' +
-      '"discarded_frames":' + UIntToStr(FDevice.DiscardedFrames) + ',' +
-      '"ignored_bytes":' + UIntToStr(FDevice.IgnoredBytes) +
+      '"connected":' + JsonBoolean(Snapshot.Connected) + ',' +
+      '"weight":' + JsonString(Snapshot.LastWeight) + ',' +
+      '"last_read":' + JsonString(IsoDateTime(Snapshot.LastRead)) + ',' +
+      '"last_error":' + JsonString(Snapshot.LastError) + ',' +
+      '"discarded_frames":' + IntToStr(Int64(Snapshot.DiscardedFrames)) + ',' +
+      '"ignored_bytes":' + IntToStr(Int64(Snapshot.IgnoredBytes)) +
     '}';
 end;
 
@@ -143,11 +151,15 @@ begin
 end;
 
 function TScaleApi.LegacyJson: string;
+var
+  Snapshot: TScaleSnapshot;
 begin
+  Snapshot := FDevice.GetSnapshot;
+
   Result :=
     '{' +
       '"rs":{' +
-        '"peso":' + JsonString(FDevice.LastWeight) +
+        '"peso":' + JsonString(Snapshot.LastWeight) +
       '}' +
     '}';
 end;
