@@ -5,7 +5,7 @@ unit scaleapi;
 interface
 
 uses
-  Classes, SysUtils, scaledevice, setmain, scalejson;
+  Classes, SysUtils, scaledevice, setmain, scalejson, legacyapi;
 
 type
   { TScaleApi }
@@ -134,7 +134,7 @@ var
   Snapshot: TScaleSnapshot;
 begin
   Snapshot := FDevice.GetSnapshot;
-  Result := BuildLegacyJson(Snapshot.LastWeight);
+  Result := BuildLegacyWeightJson(Snapshot.LastWeight);
 end;
 
 end.
