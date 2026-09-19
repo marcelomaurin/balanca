@@ -34,7 +34,7 @@
       <Filename Value="balanca_service"/>
     </Target>
     <SearchPaths>
-      <OtherUnitFiles Value="..;../core;../api;../app;../observability"/>
+      <OtherUnitFiles Value="..;../core;../api;../app;../observability;../legacy"/>
       <UnitOutputDirectory Value="../lib/service/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
   </CompilerOptions>

@@ -45,6 +45,10 @@ level=info
 file=balanca.log
 console=0
 
+[compatibility]
+legacy_http_enabled=1
+legacy_config_migration=1
+
 [legado]
 empresa=maurinsoft
 localizacao=nothing
@@ -111,6 +115,15 @@ Configura observabilidade:
 - `file`: arquivo de log;
 - `console`: também envia logs para stdout/stderr.
 
+## Seção [compatibility]
+
+Controla a camada histórica:
+
+- `legacy_http_enabled`: mantém as rotas `/` e `/legacy`;
+- `legacy_config_migration`: permite regravar configuração antiga no formato INI.
+
+Os dois valores são `1` por padrão para preservar compatibilidade.
+
 ## Migração automática
 
 Versões antigas gravavam o arquivo assim:
@@ -143,4 +156,5 @@ Campos ausentes usam valores padrão. Inteiros legados usam `TryStrToInt`, e boo
 - `reconnect`: resiliência da conexão;
 - `security`: exposição de rede e autenticação;
 - `logging`: nível e destinos de log;
+- `compatibility`: recursos históricos que ainda devem permanecer ativos;
 - `legado`: campos históricos mantidos temporariamente.

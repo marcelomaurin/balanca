@@ -45,6 +45,12 @@ A suíte cobre componentes que podem ser validados sem abrir a interface gráfic
   - serialização JSON;
   - uptime.
 
+- `legacy_test.pas`
+  - parser de configuração antiga;
+  - defaults históricos;
+  - resposta JSON/HTML legada;
+  - detecção de INI vs formato antigo.
+
 ## Linux/macOS
 
 Com Free Pascal instalado:

@@ -28,7 +28,6 @@ function BuildConfigJson(const APort: string; ABaudRate, ADataBit, AParity,
 function BuildNotFoundJson(const APath: string): string;
 function BuildCommandResultJson(const ACommand: string; AAccepted: Boolean;
   const AMessage: string): string;
-function BuildLegacyJson(const AWeight: string): string;
 
 implementation
 
@@ -131,11 +130,6 @@ begin
       '"accepted":' + JsonBoolean(AAccepted) + ',' +
       '"message":' + JsonString(AMessage) +
     '}';
-end;
-
-function BuildLegacyJson(const AWeight: string): string;
-begin
-  Result := '{"rs":{"peso":' + JsonString(AWeight) + '}}';
 end;
 
 end.

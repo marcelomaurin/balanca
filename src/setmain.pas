@@ -8,7 +8,7 @@ unit setmain;
 interface
 
 uses
-  Classes, SysUtils, IniFiles;
+  Classes, SysUtils, IniFiles, legacyconfig, legacysettings;
 
 const
   filename = 'main.cfg';
@@ -29,18 +29,7 @@ type
     FPARI: Integer;
     FSTBIT: Integer;
     FProtocolId: string;
-    FEmpresa: string;
-    FLocalizacao: string;
-    FTipo1: string;
-    FTipo2: string;
-    FTipo3: string;
-    FContagem1: Integer;
-    FContagem2: Integer;
-    FContagem3: Integer;
-    FPainel: string;
     FSplash: Boolean;
-    FTipoImp: Integer;
-    FModeloImp: Integer;
     FReconnectEnabled: Boolean;
     FResponseTimeoutMs: Integer;
     FReconnectInitialMs: Integer;
@@ -53,14 +42,13 @@ type
     FLogLevel: string;
     FLogFile: string;
     FLogConsole: Boolean;
+    FLegacyHttpEnabled: Boolean;
+    FLegacyConfigMigration: Boolean;
+    FLegacy: TLegacySettings;
 
     procedure Default;
     function ConfigFileName: string;
-    function IsIniFile(const AFileName: string): Boolean;
     procedure LoadLegacyFile(const AFileName: string);
-    function LegacyValue(AList: TStrings; const AKey, ADefault: string): string;
-    function LegacyInteger(AList: TStrings; const AKey: string; ADefault: Integer): Integer;
-    function LegacyBoolean(AList: TStrings; const AKey: string; ADefault: Boolean): Boolean;
 
     procedure SetPOSX(Value: Integer);
     procedure SetPOSY(Value: Integer);
@@ -84,6 +72,17 @@ type
     procedure SetSplash(Value: Boolean);
     procedure SetTipoImp(Value: Integer);
     procedure SetModeloImp(Value: Integer);
+    function GetEmpresa: string;
+    function GetLocalizacao: string;
+    function GetTipo1: string;
+    function GetTipo2: string;
+    function GetTipo3: string;
+    function GetContagem1: Integer;
+    function GetContagem2: Integer;
+    function GetContagem3: Integer;
+    function GetPainel: string;
+    function GetTipoImp: Integer;
+    function GetModeloImp: Integer;
   public
     constructor Create; overload;
     constructor Create(const AConfigDir: string); overload;
@@ -103,18 +102,18 @@ type
     property PARIDADE: Integer read FPARI write SetPARI;
     property STOPBIT: Integer read FSTBIT write SetSTBIT;
     property ProtocolId: string read FProtocolId write FProtocolId;
-    property Empresa: string read FEmpresa write SetEmpresa;
-    property Localizacao: string read FLocalizacao write SetLocalizacao;
-    property Tipo1: string read FTipo1 write SetTipo1;
-    property Tipo2: string read FTipo2 write SetTipo2;
-    property Tipo3: string read FTipo3 write SetTipo3;
-    property Contagem1: Integer read FContagem1 write SetContagem1;
-    property Contagem2: Integer read FContagem2 write SetContagem2;
-    property Contagem3: Integer read FContagem3 write SetContagem3;
-    property Painel: string read FPainel write SetPainel;
+    property Empresa: string read GetEmpresa write SetEmpresa;
+    property Localizacao: string read GetLocalizacao write SetLocalizacao;
+    property Tipo1: string read GetTipo1 write SetTipo1;
+    property Tipo2: string read GetTipo2 write SetTipo2;
+    property Tipo3: string read GetTipo3 write SetTipo3;
+    property Contagem1: Integer read GetContagem1 write SetContagem1;
+    property Contagem2: Integer read GetContagem2 write SetContagem2;
+    property Contagem3: Integer read GetContagem3 write SetContagem3;
+    property Painel: string read GetPainel write SetPainel;
     property Splash: Boolean read FSplash write SetSplash;
-    property TipoImp: Integer read FTipoImp write SetTipoImp;
-    property ModeloImp: Integer read FModeloImp write SetModeloImp;
+    property TipoImp: Integer read GetTipoImp write SetTipoImp;
+    property ModeloImp: Integer read GetModeloImp write SetModeloImp;
     property ReconnectEnabled: Boolean read FReconnectEnabled write FReconnectEnabled;
     property ResponseTimeoutMs: Integer read FResponseTimeoutMs write FResponseTimeoutMs;
     property ReconnectInitialMs: Integer read FReconnectInitialMs write FReconnectInitialMs;
@@ -128,6 +127,10 @@ type
     property LogLevel: string read FLogLevel write FLogLevel;
     property LogFile: string read FLogFile write FLogFile;
     property LogConsole: Boolean read FLogConsole write FLogConsole;
+    property LegacyHttpEnabled: Boolean read FLegacyHttpEnabled write FLegacyHttpEnabled;
+    property LegacyConfigMigration: Boolean read FLegacyConfigMigration
+      write FLegacyConfigMigration;
+    property Legacy: TLegacySettings read FLegacy;
     property Path: string read FPATH;
   end;
 
@@ -146,21 +149,34 @@ procedure TSetMain.SetBAUD(Value: Integer); begin FBAUD := Value; end;
 procedure TSetMain.SetDTBIT(Value: Integer); begin FDTBIT := Value; end;
 procedure TSetMain.SetPARI(Value: Integer); begin FPARI := Value; end;
 procedure TSetMain.SetSTBIT(Value: Integer); begin FSTBIT := Value; end;
-procedure TSetMain.SetEmpresa(Value: string); begin FEmpresa := Value; end;
-procedure TSetMain.SetLocalizacao(Value: string); begin FLocalizacao := Value; end;
-procedure TSetMain.SetTipo1(Value: string); begin FTipo1 := Value; end;
-procedure TSetMain.SetTipo2(Value: string); begin FTipo2 := Value; end;
-procedure TSetMain.SetTipo3(Value: string); begin FTipo3 := Value; end;
-procedure TSetMain.SetContagem1(Value: Integer); begin FContagem1 := Value; end;
-procedure TSetMain.SetContagem2(Value: Integer); begin FContagem2 := Value; end;
-procedure TSetMain.SetContagem3(Value: Integer); begin FContagem3 := Value; end;
-procedure TSetMain.SetPainel(Value: string); begin FPainel := Value; end;
+procedure TSetMain.SetEmpresa(Value: string); begin FLegacy.Empresa := Value; end;
+procedure TSetMain.SetLocalizacao(Value: string); begin FLegacy.Localizacao := Value; end;
+procedure TSetMain.SetTipo1(Value: string); begin FLegacy.Tipo1 := Value; end;
+procedure TSetMain.SetTipo2(Value: string); begin FLegacy.Tipo2 := Value; end;
+procedure TSetMain.SetTipo3(Value: string); begin FLegacy.Tipo3 := Value; end;
+procedure TSetMain.SetContagem1(Value: Integer); begin FLegacy.Contagem1 := Value; end;
+procedure TSetMain.SetContagem2(Value: Integer); begin FLegacy.Contagem2 := Value; end;
+procedure TSetMain.SetContagem3(Value: Integer); begin FLegacy.Contagem3 := Value; end;
+procedure TSetMain.SetPainel(Value: string); begin FLegacy.Painel := Value; end;
 procedure TSetMain.SetSplash(Value: Boolean); begin FSplash := Value; end;
-procedure TSetMain.SetTipoImp(Value: Integer); begin FTipoImp := Value; end;
-procedure TSetMain.SetModeloImp(Value: Integer); begin FModeloImp := Value; end;
+procedure TSetMain.SetTipoImp(Value: Integer); begin FLegacy.TipoImp := Value; end;
+procedure TSetMain.SetModeloImp(Value: Integer); begin FLegacy.ModeloImp := Value; end;
+
+function TSetMain.GetEmpresa: string; begin Result := FLegacy.Empresa; end;
+function TSetMain.GetLocalizacao: string; begin Result := FLegacy.Localizacao; end;
+function TSetMain.GetTipo1: string; begin Result := FLegacy.Tipo1; end;
+function TSetMain.GetTipo2: string; begin Result := FLegacy.Tipo2; end;
+function TSetMain.GetTipo3: string; begin Result := FLegacy.Tipo3; end;
+function TSetMain.GetContagem1: Integer; begin Result := FLegacy.Contagem1; end;
+function TSetMain.GetContagem2: Integer; begin Result := FLegacy.Contagem2; end;
+function TSetMain.GetContagem3: Integer; begin Result := FLegacy.Contagem3; end;
+function TSetMain.GetPainel: string; begin Result := FLegacy.Painel; end;
+function TSetMain.GetTipoImp: Integer; begin Result := FLegacy.TipoImp; end;
+function TSetMain.GetModeloImp: Integer; begin Result := FLegacy.ModeloImp; end;
 
 procedure TSetMain.Default;
 begin
+  FLegacy.ResetDefaults;
   ckdevice := False;
   FPosX := 0;
   FPosY := 0;
@@ -180,17 +196,6 @@ begin
   FSTBIT := 0; // 1 stop bit
   FProtocolId := 'toledo';
 
-  FEmpresa := 'maurinsoft';
-  FLocalizacao := 'nothing';
-  FTipo1 := 'Normal';
-  FTipo2 := 'Idoso';
-  FTipo3 := 'Especial';
-  FContagem1 := 0;
-  FContagem2 := 0;
-  FContagem3 := 0;
-  FPainel := '192.168.0.108';
-  FTipoImp := 0;
-  FModeloImp := 0;
 
   FReconnectEnabled := True;
   FResponseTimeoutMs := 3000;
@@ -206,83 +211,14 @@ begin
   FLogLevel := 'info';
   FLogFile := IncludeTrailingPathDelimiter(FPATH) + 'balanca.log';
   FLogConsole := False;
+
+  FLegacyHttpEnabled := True;
+  FLegacyConfigMigration := True;
 end;
 
 function TSetMain.ConfigFileName: string;
 begin
   Result := IncludeTrailingPathDelimiter(FPATH) + filename;
-end;
-
-function TSetMain.IsIniFile(const AFileName: string): Boolean;
-var
-  L: TStringList;
-  S: string;
-  I: Integer;
-begin
-  Result := False;
-  if not FileExists(AFileName) then
-    Exit;
-
-  L := TStringList.Create;
-  try
-    L.LoadFromFile(AFileName);
-    for I := 0 to L.Count - 1 do
-    begin
-      S := Trim(L[I]);
-      if S = '' then
-        Continue;
-      Result := (Length(S) >= 2) and (S[1] = '[') and (S[Length(S)] = ']');
-      Exit;
-    end;
-  finally
-    L.Free;
-  end;
-end;
-
-function TSetMain.LegacyValue(AList: TStrings; const AKey, ADefault: string): string;
-var
-  I, P: Integer;
-  S, K: string;
-begin
-  Result := ADefault;
-  K := UpperCase(AKey);
-
-  for I := 0 to AList.Count - 1 do
-  begin
-    S := AList[I];
-    P := Pos(':', S);
-    if P <= 0 then
-      Continue;
-
-    if UpperCase(Trim(Copy(S, 1, P - 1))) = K then
-    begin
-      Result := Trim(Copy(S, P + 1, MaxInt));
-      Exit;
-    end;
-  end;
-end;
-
-function TSetMain.LegacyInteger(AList: TStrings; const AKey: string;
-  ADefault: Integer): Integer;
-var
-  S: string;
-begin
-  S := LegacyValue(AList, AKey, IntToStr(ADefault));
-  if not TryStrToInt(S, Result) then
-    Result := ADefault;
-end;
-
-function TSetMain.LegacyBoolean(AList: TStrings; const AKey: string;
-  ADefault: Boolean): Boolean;
-var
-  S: string;
-begin
-  S := LowerCase(Trim(LegacyValue(AList, AKey, BoolToStr(ADefault, True))));
-  if (S = '1') or (S = 'true') or (S = 'yes') or (S = 'sim') then
-    Exit(True);
-  if (S = '0') or (S = 'false') or (S = 'no') or (S = 'nao') or (S = 'não') then
-    Exit(False);
-  Result := ADefault;
 end;
 
 procedure TSetMain.LoadLegacyFile(const AFileName: string);
@@ -305,18 +241,18 @@ begin
     FPARI := LegacyInteger(L, 'PARIDADE', FPARI);
     FSTBIT := LegacyInteger(L, 'STOPBIT', FSTBIT);
 
-    FEmpresa := LegacyValue(L, 'EMPRESA', FEmpresa);
-    FLocalizacao := LegacyValue(L, 'LOCALIZACAO', FLocalizacao);
-    FTipo1 := LegacyValue(L, 'TIPO1', FTipo1);
-    FTipo2 := LegacyValue(L, 'TIPO2', FTipo2);
-    FTipo3 := LegacyValue(L, 'TIPO3', FTipo3);
-    FContagem1 := LegacyInteger(L, 'CONTAGEM1', FContagem1);
-    FContagem2 := LegacyInteger(L, 'CONTAGEM2', FContagem2);
-    FContagem3 := LegacyInteger(L, 'CONTAGEM3', FContagem3);
-    FPainel := LegacyValue(L, 'PAINEL', FPainel);
+    FLegacy.Empresa := LegacyValue(L, 'EMPRESA', FLegacy.Empresa);
+    FLegacy.Localizacao := LegacyValue(L, 'LOCALIZACAO', FLegacy.Localizacao);
+    FLegacy.Tipo1 := LegacyValue(L, 'TIPO1', FLegacy.Tipo1);
+    FLegacy.Tipo2 := LegacyValue(L, 'TIPO2', FLegacy.Tipo2);
+    FLegacy.Tipo3 := LegacyValue(L, 'TIPO3', FLegacy.Tipo3);
+    FLegacy.Contagem1 := LegacyInteger(L, 'CONTAGEM1', FLegacy.Contagem1);
+    FLegacy.Contagem2 := LegacyInteger(L, 'CONTAGEM2', FLegacy.Contagem2);
+    FLegacy.Contagem3 := LegacyInteger(L, 'CONTAGEM3', FLegacy.Contagem3);
+    FLegacy.Painel := LegacyValue(L, 'PAINEL', FLegacy.Painel);
     FSplash := LegacyBoolean(L, 'SPLASH', FSplash);
-    FTipoImp := LegacyInteger(L, 'TIPOIMP', FTipoImp);
-    FModeloImp := LegacyInteger(L, 'MODELOIMP', FModeloImp);
+    FLegacy.TipoImp := LegacyInteger(L, 'TIPOIMP', FLegacy.TipoImp);
+    FLegacy.ModeloImp := LegacyInteger(L, 'MODELOIMP', FLegacy.ModeloImp);
   finally
     L.Free;
   end;
@@ -333,11 +269,11 @@ begin
   if not FileExists(ConfigName) then
     Exit;
 
-  if not IsIniFile(ConfigName) then
+  if IsLegacyConfigFile(ConfigName) then
   begin
     LoadLegacyFile(ConfigName);
-    // Migra automaticamente para INI após carregar com sucesso.
-    SalvaContexto;
+    if FLegacyConfigMigration then
+      SalvaContexto;
     Exit;
   end;
 
@@ -386,22 +322,27 @@ begin
     if FLogFile = '' then
       FLogFile := IncludeTrailingPathDelimiter(FPATH) + 'balanca.log';
 
+    FLegacyHttpEnabled := Ini.ReadBool('compatibility',
+      'legacy_http_enabled', FLegacyHttpEnabled);
+    FLegacyConfigMigration := Ini.ReadBool('compatibility',
+      'legacy_config_migration', FLegacyConfigMigration);
+
     if FHttpBind = '' then
       FHttpBind := '127.0.0.1';
     if FWebSocketBind = '' then
       FWebSocketBind := '127.0.0.1';
 
-    FEmpresa := Ini.ReadString('legado', 'empresa', FEmpresa);
-    FLocalizacao := Ini.ReadString('legado', 'localizacao', FLocalizacao);
-    FTipo1 := Ini.ReadString('legado', 'tipo1', FTipo1);
-    FTipo2 := Ini.ReadString('legado', 'tipo2', FTipo2);
-    FTipo3 := Ini.ReadString('legado', 'tipo3', FTipo3);
-    FContagem1 := Ini.ReadInteger('legado', 'contagem1', FContagem1);
-    FContagem2 := Ini.ReadInteger('legado', 'contagem2', FContagem2);
-    FContagem3 := Ini.ReadInteger('legado', 'contagem3', FContagem3);
-    FPainel := Ini.ReadString('legado', 'painel', FPainel);
-    FTipoImp := Ini.ReadInteger('legado', 'tipoimp', FTipoImp);
-    FModeloImp := Ini.ReadInteger('legado', 'modeloimp', FModeloImp);
+    FLegacy.Empresa := Ini.ReadString('legado', 'empresa', FLegacy.Empresa);
+    FLegacy.Localizacao := Ini.ReadString('legado', 'localizacao', FLegacy.Localizacao);
+    FLegacy.Tipo1 := Ini.ReadString('legado', 'tipo1', FLegacy.Tipo1);
+    FLegacy.Tipo2 := Ini.ReadString('legado', 'tipo2', FLegacy.Tipo2);
+    FLegacy.Tipo3 := Ini.ReadString('legado', 'tipo3', FLegacy.Tipo3);
+    FLegacy.Contagem1 := Ini.ReadInteger('legado', 'contagem1', FLegacy.Contagem1);
+    FLegacy.Contagem2 := Ini.ReadInteger('legado', 'contagem2', FLegacy.Contagem2);
+    FLegacy.Contagem3 := Ini.ReadInteger('legado', 'contagem3', FLegacy.Contagem3);
+    FLegacy.Painel := Ini.ReadString('legado', 'painel', FLegacy.Painel);
+    FLegacy.TipoImp := Ini.ReadInteger('legado', 'tipoimp', FLegacy.TipoImp);
+    FLegacy.ModeloImp := Ini.ReadInteger('legado', 'modeloimp', FLegacy.ModeloImp);
   finally
     Ini.Free;
   end;
@@ -410,6 +351,7 @@ end;
 constructor TSetMain.Create;
 begin
   inherited Create;
+  FLegacy := TLegacySettings.Create;
 
   FPATH := IncludeTrailingPathDelimiter(GetAppConfigDir(False));
   if not DirectoryExists(FPATH) then
@@ -421,6 +363,7 @@ end;
 constructor TSetMain.Create(const AConfigDir: string);
 begin
   inherited Create;
+  FLegacy := TLegacySettings.Create;
 
   FPATH := IncludeTrailingPathDelimiter(AConfigDir);
   if not DirectoryExists(FPATH) then
@@ -470,19 +413,23 @@ begin
     Ini.WriteString('logging', 'file', FLogFile);
     Ini.WriteBool('logging', 'console', FLogConsole);
 
+    Ini.WriteBool('compatibility', 'legacy_http_enabled', FLegacyHttpEnabled);
+    Ini.WriteBool('compatibility', 'legacy_config_migration',
+      FLegacyConfigMigration);
+
     // Campos mantidos por compatibilidade enquanto não forem removidos
     // definitivamente da aplicação.
-    Ini.WriteString('legado', 'empresa', FEmpresa);
-    Ini.WriteString('legado', 'localizacao', FLocalizacao);
-    Ini.WriteString('legado', 'tipo1', FTipo1);
-    Ini.WriteString('legado', 'tipo2', FTipo2);
-    Ini.WriteString('legado', 'tipo3', FTipo3);
-    Ini.WriteInteger('legado', 'contagem1', FContagem1);
-    Ini.WriteInteger('legado', 'contagem2', FContagem2);
-    Ini.WriteInteger('legado', 'contagem3', FContagem3);
-    Ini.WriteString('legado', 'painel', FPainel);
-    Ini.WriteInteger('legado', 'tipoimp', FTipoImp);
-    Ini.WriteInteger('legado', 'modeloimp', FModeloImp);
+    Ini.WriteString('legado', 'empresa', FLegacy.Empresa);
+    Ini.WriteString('legado', 'localizacao', FLegacy.Localizacao);
+    Ini.WriteString('legado', 'tipo1', FLegacy.Tipo1);
+    Ini.WriteString('legado', 'tipo2', FLegacy.Tipo2);
+    Ini.WriteString('legado', 'tipo3', FLegacy.Tipo3);
+    Ini.WriteInteger('legado', 'contagem1', FLegacy.Contagem1);
+    Ini.WriteInteger('legado', 'contagem2', FLegacy.Contagem2);
+    Ini.WriteInteger('legado', 'contagem3', FLegacy.Contagem3);
+    Ini.WriteString('legado', 'painel', FLegacy.Painel);
+    Ini.WriteInteger('legado', 'tipoimp', FLegacy.TipoImp);
+    Ini.WriteInteger('legado', 'modeloimp', FLegacy.ModeloImp);
 
     Ini.UpdateFile;
   finally
@@ -493,6 +440,7 @@ end;
 destructor TSetMain.Destroy;
 begin
   // A aplicação salva explicitamente ao encerrar; não grava novamente aqui.
+  FLegacy.Free;
   inherited Destroy;
 end;
 

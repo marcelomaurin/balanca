@@ -37,8 +37,6 @@ begin
   AssertEquals('{"command":"read","accepted":true,"message":"queued"}',
     J, 'command result');
 
-  J := BuildLegacyJson('+001.250');
-  AssertEquals('{"rs":{"peso":"+001.250"}}', J, 'legacy JSON');
 
   WriteLn('OK - api_json_test');
 end.
