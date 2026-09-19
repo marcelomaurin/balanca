@@ -14,7 +14,7 @@ implementation
 
 function BuildLegacyWeightJson(const AWeight: string): string;
 begin
-  Result := BuildLegacyJson(AWeight);
+  Result := '{"rs":{"peso":' + JsonString(AWeight) + '}}';
 end;
 
 function BuildLegacyHtmlResponse(const AWeight: string): string;
