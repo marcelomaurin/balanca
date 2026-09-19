@@ -28,6 +28,7 @@ type
     FDTBIT: Integer;
     FPARI: Integer;
     FSTBIT: Integer;
+    FProtocolId: string;
     FEmpresa: string;
     FLocalizacao: string;
     FTipo1: string;
@@ -98,6 +99,7 @@ type
     property DATABIT: Integer read FDTBIT write SetDTBIT;
     property PARIDADE: Integer read FPARI write SetPARI;
     property STOPBIT: Integer read FSTBIT write SetSTBIT;
+    property ProtocolId: string read FProtocolId write FProtocolId;
     property Empresa: string read FEmpresa write SetEmpresa;
     property Localizacao: string read FLocalizacao write SetLocalizacao;
     property Tipo1: string read FTipo1 write SetTipo1;
@@ -170,6 +172,7 @@ begin
   FDTBIT := 0; // 8 bits
   FPARI := 0;  // sem paridade
   FSTBIT := 0; // 1 stop bit
+  FProtocolId := 'toledo';
 
   FEmpresa := 'maurinsoft';
   FLocalizacao := 'nothing';
@@ -342,6 +345,9 @@ begin
     FDTBIT := Ini.ReadInteger('serial', 'databit', FDTBIT);
     FPARI := Ini.ReadInteger('serial', 'paridade', FPARI);
     FSTBIT := Ini.ReadInteger('serial', 'stopbit', FSTBIT);
+    FProtocolId := LowerCase(Trim(Ini.ReadString('scale', 'protocol', FProtocolId)));
+    if FProtocolId = '' then
+      FProtocolId := 'toledo';
 
     FReconnectEnabled := Ini.ReadBool('reconnect', 'enabled', FReconnectEnabled);
     FResponseTimeoutMs := Ini.ReadInteger('reconnect', 'response_timeout_ms', FResponseTimeoutMs);
@@ -427,6 +433,8 @@ begin
     Ini.WriteInteger('serial', 'databit', FDTBIT);
     Ini.WriteInteger('serial', 'paridade', FPARI);
     Ini.WriteInteger('serial', 'stopbit', FSTBIT);
+
+    Ini.WriteString('scale', 'protocol', FProtocolId);
 
     Ini.WriteBool('reconnect', 'enabled', FReconnectEnabled);
     Ini.WriteInteger('reconnect', 'response_timeout_ms', FResponseTimeoutMs);
