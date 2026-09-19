@@ -25,6 +25,8 @@ type
     function StatusJson: string;
     function ConfigJson: string;
     function NotFoundJson(const APath: string): string;
+    function CommandResultJson(const ACommand: string; AAccepted: Boolean;
+      const AMessage: string): string;
     function LegacyJson: string;
   end;
 
@@ -147,6 +149,17 @@ begin
     '{' +
       '"error":"not_found",' +
       '"path":' + JsonString(APath) +
+    '}';
+end;
+
+function TScaleApi.CommandResultJson(const ACommand: string; AAccepted: Boolean;
+  const AMessage: string): string;
+begin
+  Result :=
+    '{' +
+      '"command":' + JsonString(ACommand) + ',' +
+      '"accepted":' + JsonBoolean(AAccepted) + ',' +
+      '"message":' + JsonString(AMessage) +
     '}';
 end;
 
