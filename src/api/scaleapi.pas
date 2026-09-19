@@ -70,6 +70,17 @@ begin
   JsonSnapshot.DiscardedFrames := Snapshot.DiscardedFrames;
   JsonSnapshot.IgnoredBytes := Snapshot.IgnoredBytes;
   Result := BuildStatusJson(JsonSnapshot);
+
+  if (Length(Result) > 0) and (Result[Length(Result)] = '}') then
+    Delete(Result, Length(Result), 1);
+
+  Result :=
+    Result + ',' +
+    '"protocol":{' +
+      '"id":' + JsonString(Snapshot.ProtocolId) + ',' +
+      '"name":' + JsonString(Snapshot.ProtocolName) +
+    '}' +
+    '}';
 end;
 
 function TScaleApi.ConfigJson: string;
