@@ -15,6 +15,9 @@ type
     FTransport: TSerialTransport;
     FProtocol: TToledoProtocol;
     FLastWeight: string;
+    FLastFrame: string;
+    FLastError: string;
+    FLastRead: TDateTime;
     FOnWeight: TWeightEvent;
     procedure ProtocolWeight(Sender: TObject; const AWeight: string);
   public
@@ -29,6 +32,9 @@ type
 
     property Config: TScaleConfig read FConfig;
     property LastWeight: string read FLastWeight;
+    property LastFrame: string read FLastFrame;
+    property LastError: string read FLastError;
+    property LastRead: TDateTime read FLastRead;
     property OnWeight: TWeightEvent read FOnWeight write FOnWeight;
   end;
 
@@ -42,6 +48,9 @@ begin
   FProtocol := TToledoProtocol.Create;
   FProtocol.OnWeight := @ProtocolWeight;
   FLastWeight := '';
+  FLastFrame := '';
+  FLastError := '';
+  FLastRead := 0;
 end;
 
 destructor TScaleDevice.Destroy;
@@ -55,8 +64,17 @@ end;
 
 function TScaleDevice.Connect: Boolean;
 begin
-  FTransport.ApplyConfig(FConfig);
-  Result := FTransport.Connect;
+  FLastError := '';
+  try
+    FTransport.ApplyConfig(FConfig);
+    Result := FTransport.Connect;
+  except
+    on E: Exception do
+    begin
+      FLastError := E.Message;
+      raise;
+    end;
+  end;
 end;
 
 procedure TScaleDevice.Disconnect;
@@ -69,9 +87,22 @@ procedure TScaleDevice.ProcessIncoming;
 var
   LData: string;
 begin
-  LData := FTransport.ReadAvailable;
-  if LData <> '' then
-    FProtocol.Feed(LData);
+  try
+    LData := FTransport.ReadAvailable;
+    if LData <> '' then
+    begin
+      FLastFrame := LData;
+      FLastRead := Now;
+      FLastError := '';
+      FProtocol.Feed(LData);
+    end;
+  except
+    on E: Exception do
+    begin
+      FLastError := E.Message;
+      raise;
+    end;
+  end;
 end;
 
 procedure TScaleDevice.RequestWeight;
