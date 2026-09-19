@@ -29,6 +29,7 @@ type
     function RequestRoute(const ARequest: string): string;
     function QueryParam(const APath, AName: string): string;
     function IsLoopbackBind: Boolean;
+    function IsLoopbackPeer(const APeer: string): Boolean;
     function ConstantTimeEquals(const A, B: string): Boolean;
     function RequestApiKey(const ARequest, APath: string): string;
     function WebSocketAccept(const AKey: string): string;
@@ -191,6 +192,18 @@ begin
   Result := (V = '127.0.0.1') or (V = 'localhost') or (V = '::1');
 end;
 
+function TWeightWebSocketServer.IsLoopbackPeer(const APeer: string): Boolean;
+var
+  V: string;
+begin
+  V := LowerCase(Trim(APeer));
+  Result :=
+    (V = '127.0.0.1') or
+    (V = '::1') or
+    (V = '0:0:0:0:0:0:0:1') or
+    (Pos('127.', V) = 1);
+end;
+
 function TWeightWebSocketServer.ConstantTimeEquals(const A, B: string): Boolean;
 var
   I, Diff: Integer;
@@ -286,6 +299,12 @@ begin
 
   Path := RequestPath(Request);
   Route := RequestRoute(Request);
+
+  if IsLoopbackBind and (not IsLoopbackPeer(ASocket.PeerAddress)) then
+  begin
+    RejectClient(ASocket, 403, 'Forbidden');
+    Exit;
+  end;
 
   if (not IsLoopbackBind) and (Trim(FApiKey) = '') and
      (not FAllowRemoteWithoutApiKey) then
