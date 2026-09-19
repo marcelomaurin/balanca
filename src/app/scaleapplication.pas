@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, LazSerial, lNet, setmain, scaledevice, scaleapi,
-  scalejson, websocketserver, scalecommands;
+  scalejson, websocketserver, scalecommands, applogger, scalemetrics;
 
 type
   TScaleConnectionState = (
@@ -27,6 +27,8 @@ type
     FDevice: TScaleDevice;
     FApi: TScaleApi;
     FWebSocket: TWeightWebSocketServer;
+    FLogger: TAppLogger;
+    FMetrics: TScaleMetrics;
     FOnWeight: TScaleAppWeightEvent;
     FOnConnectionState: TScaleConnectionEvent;
 
@@ -73,6 +75,8 @@ type
     property Device: TScaleDevice read FDevice;
     property Settings: TSetMain read FSettings;
     property WebSocket: TWeightWebSocketServer read FWebSocket;
+    property Logger: TAppLogger read FLogger;
+    property Metrics: TScaleMetrics read FMetrics;
     property DesiredActive: Boolean read FDesiredActive;
     property AutoReconnect: Boolean read FAutoReconnect write FAutoReconnect;
     property ConnectionState: TScaleConnectionState read FConnectionState;
@@ -102,6 +106,11 @@ begin
   FDevice.OnWeight := @DeviceWeight;
   FApi := TScaleApi.Create(FDevice, FSettings);
   FWebSocket := TWeightWebSocketServer.Create;
+  FLogger := TAppLogger.Create;
+  FMetrics := TScaleMetrics.Create;
+  FLogger.MinLevel := ParseLogLevel(FSettings.LogLevel);
+  FLogger.FileName := FSettings.LogFile;
+  FLogger.ConsoleEnabled := FSettings.LogConsole;
   FWebSocket.ApiKey := FSettings.ApiKey;
   FWebSocket.BindAddress := FSettings.WebSocketBind;
   FWebSocket.AllowRemoteWithoutApiKey := FSettings.AllowRemoteWithoutApiKey;
@@ -119,10 +128,14 @@ begin
   FReconnectMaxMs := Cardinal(FSettings.ReconnectMaxMs);
 
   ApplySettings;
+  FLogger.Info('application', 'Aplicação da balança inicializada');
 end;
 
 destructor TScaleApplication.Destroy;
 begin
+  FLogger.Info('application', 'Encerrando aplicação da balança');
+  FMetrics.Free;
+  FLogger.Free;
   FWebSocket.Free;
   FApi.Free;
   FDevice.Free;
@@ -141,6 +154,9 @@ begin
   FWebSocket.ApiKey := FSettings.ApiKey;
   FWebSocket.BindAddress := FSettings.WebSocketBind;
   FWebSocket.AllowRemoteWithoutApiKey := FSettings.AllowRemoteWithoutApiKey;
+  FLogger.MinLevel := ParseLogLevel(FSettings.LogLevel);
+  FLogger.FileName := FSettings.LogFile;
+  FLogger.ConsoleEnabled := FSettings.LogConsole;
 end;
 
 procedure TScaleApplication.SetConnectionState(AState: TScaleConnectionState;
@@ -148,6 +164,13 @@ procedure TScaleApplication.SetConnectionState(AState: TScaleConnectionState;
 begin
   FConnectionState := AState;
   FConnectionMessage := AMessage;
+
+  case AState of
+    scsStopped: FLogger.Info('connection', AMessage);
+    scsConnecting: FLogger.Info('connection', AMessage);
+    scsConnected: FLogger.Info('connection', AMessage);
+    scsWaitingReconnect: FLogger.Warn('connection', AMessage);
+  end;
   if Assigned(FOnConnectionState) then
     FOnConnectionState(Self, AState, AMessage);
 end;
@@ -197,6 +220,7 @@ end;
 function TScaleApplication.TryConnectInternal: Boolean;
 begin
   Result := False;
+  FMetrics.IncConnectionAttempts;
   SetConnectionState(scsConnecting, 'Conectando em ' + FSettings.COMPORT);
 
   try
@@ -205,6 +229,9 @@ begin
 
     if Result then
     begin
+      if FReconnectAttempts > 0 then
+        FMetrics.IncReconnections;
+      FMetrics.IncSuccessfulConnections;
       FReconnectAttempts := 0;
       FConnectedSinceTick := GetTickCount64;
       FLastResponseTick := FConnectedSinceTick;
@@ -220,6 +247,8 @@ begin
     on E: Exception do
     begin
       Inc(FReconnectAttempts);
+      FMetrics.IncSerialErrors;
+      FLogger.Error('serial', E.Message);
       ScheduleReconnect(E.Message);
       Result := False;
     end;
@@ -266,6 +295,8 @@ begin
       except
       end;
       Inc(FReconnectAttempts);
+      FMetrics.IncSerialErrors;
+      FLogger.Error('serial', 'Erro de leitura serial: ' + E.Message);
       ScheduleReconnect('Erro de leitura serial: ' + E.Message);
     end;
   end;
@@ -299,6 +330,8 @@ begin
     end;
 
     Inc(FReconnectAttempts);
+    FMetrics.IncTimeouts;
+    FLogger.Warn('serial', 'Timeout sem resposta da balança');
     ScheduleReconnect('Timeout sem resposta da balança');
     Exit;
   end;
@@ -314,6 +347,8 @@ begin
       except
       end;
       Inc(FReconnectAttempts);
+      FMetrics.IncSerialErrors;
+      FLogger.Error('command', 'Erro ao enviar comando: ' + E.Message);
       ScheduleReconnect('Erro ao enviar comando: ' + E.Message);
     end;
   end;
@@ -327,6 +362,13 @@ end;
 function TScaleApplication.QueueCommand(ACommand: TScaleCommand): Boolean;
 begin
   Result := FDevice.QueueCommand(ACommand);
+  if Result then
+  begin
+    FMetrics.IncCommandsQueued;
+    FLogger.Info('command', 'Comando enfileirado: ' + ScaleCommandName(ACommand));
+  end
+  else
+    FLogger.Warn('command', 'Comando não enfileirado: ' + ScaleCommandName(ACommand));
 end;
 
 function TScaleApplication.Snapshot: TScaleSnapshot;
@@ -357,6 +399,7 @@ begin
 
   Result :=
     Base + ',' +
+    '"metrics":' + FMetrics.ToJson + ',' +
     '"supervisor":{' +
       '"desired_active":' + JsonBoolean(FDesiredActive) + ',' +
       '"auto_reconnect":' + JsonBoolean(FAutoReconnect) + ',' +
@@ -371,6 +414,8 @@ end;
 procedure TScaleApplication.DeviceWeight(Sender: TObject; const AWeight: string);
 begin
   FLastResponseTick := GetTickCount64;
+  FMetrics.IncWeightReadings;
+  FLogger.Debug('weight', 'Peso recebido: ' + AWeight);
 
   if FConnectionState <> scsConnected then
     SetConnectionState(scsConnected, 'Comunicação restabelecida');
@@ -383,11 +428,14 @@ end;
 
 procedure TScaleApplication.WebSocketClientConnected(ASocket: TLSocket);
 begin
+  FMetrics.IncWebSocketConnections;
+  FLogger.Info('websocket', 'Cliente conectado: ' + ASocket.PeerAddress);
   FWebSocket.ClientConnected(ASocket);
 end;
 
 procedure TScaleApplication.WebSocketClientDisconnected(ASocket: TLSocket);
 begin
+  FLogger.Info('websocket', 'Cliente desconectado: ' + ASocket.PeerAddress);
   FWebSocket.ClientDisconnected(ASocket);
 end;
 

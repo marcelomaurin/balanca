@@ -24,7 +24,8 @@ O projeto foi reorganizado para separar interface, transporte serial, protocolo,
 - simulador Arduino;
 - modos de falha para teste;
 - suíte de testes FPC;
-- arquitetura multi-protocolo.
+- arquitetura multi-protocolo;
+- logging estruturado e métricas operacionais.
 
 ## Arquitetura
 
@@ -177,6 +178,7 @@ Principais endpoints:
 GET  /api/v1/weight
 GET  /api/v1/status
 GET  /api/v1/config
+GET  /api/v1/metrics
 
 POST /api/v1/commands/read
 POST /api/v1/commands/tare
@@ -449,6 +451,18 @@ O GitHub Actions valida automaticamente a suíte FPC em Linux e Windows, além d
 O build Lazarus completo fica em um workflow manual separado por depender de pacotes externos do IDE. Tags `v*` geram um pacote de código-fonte validado pelos testes.
 
 Veja [docs/ci-cd.md](docs/ci-cd.md).
+
+## Logging e observabilidade
+
+Logs estruturados e métricas operacionais estão disponíveis para desktop e modo headless.
+
+Endpoint:
+
+```text
+GET /api/v1/metrics
+```
+
+Veja [docs/observability.md](docs/observability.md).
 
 ## Compatibilidade
 

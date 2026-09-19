@@ -10,7 +10,7 @@ compile_and_run() {
   name="$1"
   shift
   echo "==> $name"
-  fpc -Fu"$ROOT/src/core" -Fu"$ROOT/src/api" -Fu"$ROOT/src" -Fu"$ROOT/tests"       -FE"$OUT" "$ROOT/tests/$name.pas" "$@"
+  fpc -Fu"$ROOT/src/core" -Fu"$ROOT/src/api" -Fu"$ROOT/src/observability" -Fu"$ROOT/src" -Fu"$ROOT/tests"       -FE"$OUT" "$ROOT/tests/$name.pas" "$@"
   "$OUT/$name"
 }
 
@@ -19,5 +19,7 @@ compile_and_run commands_test
 compile_and_run config_test
 compile_and_run api_json_test
 compile_and_run protocol_factory_test
+compile_and_run logger_test
+compile_and_run metrics_test
 
 echo "OK - toda a suite passou"

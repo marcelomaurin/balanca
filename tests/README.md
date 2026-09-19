@@ -35,6 +35,16 @@ A suíte cobre componentes que podem ser validados sem abrir a interface gráfic
   - compatibilidade legacy;
   - escape de caracteres especiais.
 
+- `logger_test.pas`
+  - níveis de log;
+  - filtro por nível;
+  - gravação em arquivo.
+
+- `metrics_test.pas`
+  - contadores operacionais;
+  - serialização JSON;
+  - uptime.
+
 ## Linux/macOS
 
 Com Free Pascal instalado:

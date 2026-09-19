@@ -73,6 +73,10 @@ begin
       AssertTrue(not Settings.AllowRemoteWithoutApiKey,
         'acesso remoto sem chave deve ser bloqueado por default');
       AssertTrue(Settings.CommandsEnabled, 'comandos habilitados por default');
+      AssertEquals('info', Settings.LogLevel, 'nível de log default');
+      AssertTrue(Pos('balanca.log', Settings.LogFile) > 0,
+        'arquivo de log default');
+      AssertTrue(not Settings.LogConsole, 'console de log default');
 
       Settings.ReconnectEnabled := True;
       Settings.ResponseTimeoutMs := 4500;
@@ -84,6 +88,9 @@ begin
       Settings.ApiKey := 'teste-chave-123';
       Settings.AllowRemoteWithoutApiKey := False;
       Settings.CommandsEnabled := False;
+      Settings.LogLevel := 'debug';
+      Settings.LogFile := IncludeTrailingPathDelimiter(Dir) + 'teste.log';
+      Settings.LogConsole := True;
       Settings.SalvaContexto;
     finally
       Settings.Free;
@@ -109,6 +116,10 @@ begin
       AssertTrue(not Reloaded.AllowRemoteWithoutApiKey,
         'releitura allow remote');
       AssertTrue(not Reloaded.CommandsEnabled, 'releitura commands enabled');
+      AssertEquals('debug', Reloaded.LogLevel, 'releitura log level');
+      AssertEquals(IncludeTrailingPathDelimiter(Dir) + 'teste.log',
+        Reloaded.LogFile, 'releitura log file');
+      AssertTrue(Reloaded.LogConsole, 'releitura log console');
     finally
       Reloaded.Free;
     end;

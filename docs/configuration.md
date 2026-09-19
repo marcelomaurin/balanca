@@ -40,6 +40,11 @@ api_key=
 allow_remote_without_api_key=0
 commands_enabled=1
 
+[logging]
+level=info
+file=balanca.log
+console=0
+
 [legado]
 empresa=maurinsoft
 localizacao=nothing
@@ -98,6 +103,14 @@ Configura exposição de rede e autenticação:
 
 O padrão é local-only (`127.0.0.1`).
 
+## Seção [logging]
+
+Configura observabilidade:
+
+- `level`: `debug`, `info`, `warn` ou `error`;
+- `file`: arquivo de log;
+- `console`: também envia logs para stdout/stderr.
+
 ## Migração automática
 
 Versões antigas gravavam o arquivo assim:
@@ -129,4 +142,5 @@ Campos ausentes usam valores padrão. Inteiros legados usam `TryStrToInt`, e boo
 - `scale`: protocolo da balança;
 - `reconnect`: resiliência da conexão;
 - `security`: exposição de rede e autenticação;
+- `logging`: nível e destinos de log;
 - `legado`: campos históricos mantidos temporariamente.

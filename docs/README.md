@@ -11,6 +11,7 @@ Este diretório reúne a documentação técnica e operacional do projeto.
 - [Segurança](security.md)
 - [Drivers de protocolo](protocol-drivers.md)
 - [CI/CD](ci-cd.md)
+- [Logging e observabilidade](observability.md)
 
 ## Comunicação e integração
 

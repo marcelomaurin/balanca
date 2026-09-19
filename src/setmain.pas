@@ -50,6 +50,9 @@ type
     FApiKey: string;
     FAllowRemoteWithoutApiKey: Boolean;
     FCommandsEnabled: Boolean;
+    FLogLevel: string;
+    FLogFile: string;
+    FLogConsole: Boolean;
 
     procedure Default;
     function ConfigFileName: string;
@@ -122,6 +125,9 @@ type
     property AllowRemoteWithoutApiKey: Boolean read FAllowRemoteWithoutApiKey
       write FAllowRemoteWithoutApiKey;
     property CommandsEnabled: Boolean read FCommandsEnabled write FCommandsEnabled;
+    property LogLevel: string read FLogLevel write FLogLevel;
+    property LogFile: string read FLogFile write FLogFile;
+    property LogConsole: Boolean read FLogConsole write FLogConsole;
     property Path: string read FPATH;
   end;
 
@@ -196,6 +202,10 @@ begin
   FApiKey := '';
   FAllowRemoteWithoutApiKey := False;
   FCommandsEnabled := True;
+
+  FLogLevel := 'info';
+  FLogFile := IncludeTrailingPathDelimiter(FPATH) + 'balanca.log';
+  FLogConsole := False;
 end;
 
 function TSetMain.ConfigFileName: string;
@@ -368,6 +378,14 @@ begin
       'allow_remote_without_api_key', FAllowRemoteWithoutApiKey);
     FCommandsEnabled := Ini.ReadBool('security', 'commands_enabled', FCommandsEnabled);
 
+    FLogLevel := LowerCase(Trim(Ini.ReadString('logging', 'level', FLogLevel)));
+    FLogFile := Trim(Ini.ReadString('logging', 'file', FLogFile));
+    FLogConsole := Ini.ReadBool('logging', 'console', FLogConsole);
+    if FLogLevel = '' then
+      FLogLevel := 'info';
+    if FLogFile = '' then
+      FLogFile := IncludeTrailingPathDelimiter(FPATH) + 'balanca.log';
+
     if FHttpBind = '' then
       FHttpBind := '127.0.0.1';
     if FWebSocketBind = '' then
@@ -447,6 +465,10 @@ begin
     Ini.WriteBool('security', 'allow_remote_without_api_key',
       FAllowRemoteWithoutApiKey);
     Ini.WriteBool('security', 'commands_enabled', FCommandsEnabled);
+
+    Ini.WriteString('logging', 'level', FLogLevel);
+    Ini.WriteString('logging', 'file', FLogFile);
+    Ini.WriteBool('logging', 'console', FLogConsole);
 
     // Campos mantidos por compatibilidade enquanto não forem removidos
     // definitivamente da aplicação.
