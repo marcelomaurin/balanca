@@ -146,7 +146,7 @@ var
 begin
   Delay := FReconnectInitialMs;
 
-  for I := 1 to FReconnectAttempts do
+  for I := 2 to FReconnectAttempts do
   begin
     Delay := Delay * 2;
     if Delay >= FReconnectMaxMs then
