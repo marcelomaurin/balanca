@@ -13,13 +13,14 @@ call :run api_json_test || exit /b 1
 call :run protocol_factory_test || exit /b 1
 call :run logger_test || exit /b 1
 call :run metrics_test || exit /b 1
+call :run legacy_test || exit /b 1
 
 echo OK - toda a suite passou
 exit /b 0
 
 :run
 echo ==^> %1
-fpc -Fu"%ROOT%\src\core" -Fu"%ROOT%\src\api" -Fu"%ROOT%\src\observability" -Fu"%ROOT%\src" -Fu"%ROOT%\tests" -FE"%OUT%" "%ROOT%\tests\%1.pas"
+fpc -Fu"%ROOT%\src\core" -Fu"%ROOT%\src\api" -Fu"%ROOT%\src\observability" -Fu"%ROOT%\src\legacy" -Fu"%ROOT%\src" -Fu"%ROOT%\tests" -FE"%OUT%" "%ROOT%\tests\%1.pas"
 if errorlevel 1 exit /b 1
 "%OUT%\%1.exe"
 if errorlevel 1 exit /b 1
