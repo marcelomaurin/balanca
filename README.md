@@ -178,6 +178,7 @@ Principais endpoints:
 GET  /api/v1/weight
 GET  /api/v1/status
 GET  /api/v1/config
+GET  /api/v1/metrics
 
 POST /api/v1/commands/read
 POST /api/v1/commands/tare
