@@ -9,8 +9,8 @@ uses
   ExtCtrls, Menus, PopupNotifier, LazSerial, FileUtil, LazFileUtils, LazSynaSer,
   synaser, IdHTTPServer, lNetComponents, LedNumber, setmain, registro, peso,
   setup, lNet, log, IdCustomHTTPServer, IdCompressionIntercept,
-  IdSSLOpenSSL, IdSchedulerOfThreadDefault, IdContext, scaledevice, scaleapi,
-  scalecommands, websocketserver;
+  IdSSLOpenSSL, IdSchedulerOfThreadDefault, IdContext, scaleapplication,
+  httprouter;
 
 Const
     Version : string =  '0.04';
@@ -78,9 +78,8 @@ type
     procedure Timer1StopTimer(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
   private
-    FScaleDevice: TScaleDevice;
-    FScaleApi: TScaleApi;
-    FWebSocketServer: TWeightWebSocketServer;
+    FScaleApp: TScaleApplication;
+    FHttpRouter: TScaleHttpRouter;
     FWebSocketStarted: Boolean;
     procedure ScaleWeight(Sender: TObject; const AWeight: string);
     procedure ListDev();
@@ -103,11 +102,6 @@ implementation
 procedure Tfrmmain.ScaleWeight(Sender: TObject; const AWeight: string);
 begin
   frmPeso.Peso(AWeight);
-
-  if Assigned(FWebSocketServer) then
-    FWebSocketServer.Broadcast(FScaleApi.WeightJson);
-
-  Application.ProcessMessages;
 end;
 
 procedure Tfrmmain.FormCreate(Sender: TObject);
@@ -115,10 +109,9 @@ begin
   frmlog := TfrmLog.create(self);
   frmsetup := Tfrmsetup.create(self);
   Fsetmain := TSetmain.create();
-  FScaleDevice := TScaleDevice.Create(LazSerial1);
-  FScaleDevice.OnWeight := @ScaleWeight;
-  FScaleApi := TScaleApi.Create(FScaleDevice, Fsetmain);
-  FWebSocketServer := TWeightWebSocketServer.Create;
+  FScaleApp := TScaleApplication.Create(LazSerial1, Fsetmain);
+  FScaleApp.OnWeight := @ScaleWeight;
+  FHttpRouter := TScaleHttpRouter.Create(FScaleApp);
   FWebSocketStarted := False;
   self.left := Fsetmain.posx;
   self.top := fsetmain.posy;
@@ -134,9 +127,8 @@ end;
 procedure Tfrmmain.FormDestroy(Sender: TObject);
 begin
   SalvarContexto();
-  FWebSocketServer.Free;
-  FScaleApi.Free;
-  FScaleDevice.Free;
+  FHttpRouter.Free;
+  FScaleApp.Free;
   Fsetmain.free();
   frmlog.free;
   frmRegistrar.free;
@@ -145,128 +137,14 @@ end;
 
 procedure Tfrmmain.IdHTTPServer1CommandGet(AContext: TIdContext;
   ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
-var
-  Path: string;
-  LegacyHtml: string;
 begin
-  Path := ARequestInfo.Document;
-
-  if SameText(Path, '/api/v1/weight') then
-  begin
-    AResponseInfo.ResponseNo := 200;
-    AResponseInfo.ContentType := 'application/json; charset=utf-8';
-    AResponseInfo.ContentText := FScaleApi.WeightJson;
-  end
-  else if SameText(Path, '/api/v1/status') then
-  begin
-    AResponseInfo.ResponseNo := 200;
-    AResponseInfo.ContentType := 'application/json; charset=utf-8';
-    AResponseInfo.ContentText := FScaleApi.StatusJson;
-  end
-  else if SameText(Path, '/api/v1/config') then
-  begin
-    AResponseInfo.ResponseNo := 200;
-    AResponseInfo.ContentType := 'application/json; charset=utf-8';
-    AResponseInfo.ContentText := FScaleApi.ConfigJson;
-  end
-  else if SameText(Path, '/') or SameText(Path, '/legacy') then
-  begin
-    // Compatibilidade com clientes antigos: mantém HTML contendo o objeto
-    // {"rs":{"peso":"..."}} que era retornado pela aplicação original.
-    LegacyHtml :=
-      '<html>' + LineEnding +
-      '<head>' + LineEnding +
-      '<title>Meu SRV</title>' + LineEnding +
-      '</head>' + LineEnding +
-      '<body>' + LineEnding +
-      FScaleApi.LegacyJson + LineEnding +
-      '</body>' + LineEnding +
-      '</html>' + LineEnding;
-
-    AResponseInfo.ResponseNo := 200;
-    AResponseInfo.ContentType := 'text/html; charset=utf-8';
-    AResponseInfo.ContentText := LegacyHtml;
-  end
-  else
-  begin
-    AResponseInfo.ResponseNo := 404;
-    AResponseInfo.ContentType := 'application/json; charset=utf-8';
-    AResponseInfo.ContentText := FScaleApi.NotFoundJson(Path);
-  end;
+  FHttpRouter.HandleGet(ARequestInfo, AResponseInfo);
 end;
 
 procedure Tfrmmain.IdHTTPServer1CommandOther(AContext: TIdContext;
   ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
-var
-  Path: string;
-  CommandName: string;
-  Command: TScaleCommand;
-  Snapshot: TScaleSnapshot;
 begin
-  Path := ARequestInfo.Document;
-
-  if Pos('/api/v1/commands/', LowerCase(Path)) <> 1 then
-  begin
-    AResponseInfo.ResponseNo := 404;
-    AResponseInfo.ContentType := 'application/json; charset=utf-8';
-    AResponseInfo.ContentText := FScaleApi.NotFoundJson(Path);
-    Exit;
-  end;
-
-  if not SameText(ARequestInfo.Command, 'POST') then
-  begin
-    AResponseInfo.ResponseNo := 405;
-    AResponseInfo.ContentType := 'application/json; charset=utf-8';
-    AResponseInfo.ContentText :=
-      FScaleApi.CommandResultJson('', False, 'method_not_allowed');
-    Exit;
-  end;
-
-  CommandName := Copy(Path, Length('/api/v1/commands/') + 1, MaxInt);
-
-  if not TryParseScaleCommand(CommandName, Command) then
-  begin
-    AResponseInfo.ResponseNo := 404;
-    AResponseInfo.ContentType := 'application/json; charset=utf-8';
-    AResponseInfo.ContentText :=
-      FScaleApi.CommandResultJson(CommandName, False, 'unknown_command');
-    Exit;
-  end;
-
-  if not FScaleDevice.SupportsCommand(Command) then
-  begin
-    AResponseInfo.ResponseNo := 501;
-    AResponseInfo.ContentType := 'application/json; charset=utf-8';
-    AResponseInfo.ContentText :=
-      FScaleApi.CommandResultJson(CommandName, False,
-        'command_not_supported_by_current_protocol');
-    Exit;
-  end;
-
-  Snapshot := FScaleDevice.GetSnapshot;
-  if not Snapshot.Connected then
-  begin
-    AResponseInfo.ResponseNo := 409;
-    AResponseInfo.ContentType := 'application/json; charset=utf-8';
-    AResponseInfo.ContentText :=
-      FScaleApi.CommandResultJson(CommandName, False, 'scale_not_connected');
-    Exit;
-  end;
-
-  if FScaleDevice.QueueCommand(Command) then
-  begin
-    AResponseInfo.ResponseNo := 202;
-    AResponseInfo.ContentType := 'application/json; charset=utf-8';
-    AResponseInfo.ContentText :=
-      FScaleApi.CommandResultJson(CommandName, True, 'queued');
-  end
-  else
-  begin
-    AResponseInfo.ResponseNo := 409;
-    AResponseInfo.ContentType := 'application/json; charset=utf-8';
-    AResponseInfo.ContentText :=
-      FScaleApi.CommandResultJson(CommandName, False, 'command_not_queued');
-  end;
+  FHttpRouter.HandleOther(ARequestInfo, AResponseInfo);
 end;
 
 procedure Tfrmmain.LazSerial1BlockSerialStatus(Sender: TObject;
@@ -287,8 +165,8 @@ end;
 
 procedure Tfrmmain.LazSerial1RxData(Sender: TObject);
 begin
-  if Assigned(FScaleDevice) then
-    FScaleDevice.ProcessIncoming;
+  if Assigned(FScaleApp) then
+    FScaleApp.ProcessSerial;
 end;
 
 procedure Tfrmmain.LazSerial1Status(Sender: TObject; Reason: THookSerialReason;
@@ -299,21 +177,17 @@ end;
 
 procedure Tfrmmain.LTCPComponent1Connect(aSocket: TLSocket);
 begin
-  if Assigned(FWebSocketServer) then
-    FWebSocketServer.ClientConnected(aSocket);
+  FScaleApp.WebSocketClientConnected(aSocket);
 end;
 
 procedure Tfrmmain.LTCPComponent1Disconnect(aSocket: TLSocket);
 begin
-  if Assigned(FWebSocketServer) then
-    FWebSocketServer.ClientDisconnected(aSocket);
+  FScaleApp.WebSocketClientDisconnected(aSocket);
 end;
 
 procedure Tfrmmain.LTCPComponent1Receive(aSocket: TLSocket);
 begin
-  if Assigned(FWebSocketServer) then
-    FWebSocketServer.ClientData(aSocket);
-
+  FScaleApp.WebSocketClientData(aSocket);
   LTCPComponent1.CallAction();
 end;
 
@@ -354,12 +228,8 @@ end;
 
 procedure Tfrmmain.Timer1Timer(Sender: TObject);
 begin
-  if Assigned(FScaleDevice) then
-  begin
-    FScaleDevice.ProcessPendingCommands;
-    FScaleDevice.RequestWeight;
-  end;
-  Application.ProcessMessages();
+  if Assigned(FScaleApp) then
+    FScaleApp.Tick;
 end;
 
 procedure Tfrmmain.Button1Click(Sender: TObject);
@@ -380,20 +250,14 @@ end;
 
 procedure Tfrmmain.btConectarClick(Sender: TObject);
 begin
-  FScaleDevice.Config.Port := FSETMAIN.COMPORT;
-  FScaleDevice.Config.BaudRate := FSETMAIN.BAUDRATE;
-  FScaleDevice.Config.DataBits := FSETMAIN.DATABIT;
-  FScaleDevice.Config.Parity := FSETMAIN.PARIDADE;
-  FScaleDevice.Config.StopBits := FSETMAIN.STOPBIT;
-
   try
-    FScaleDevice.Connect;
-    Application.ProcessMessages();
-  finally
-    Timer1.Enabled := not Timer1.Enabled;
-    TrayIcon1.Visible := true;
+    if not FScaleApp.Connect then
+      raise Exception.Create('Não foi possível conectar à balança');
+
+    Timer1.Enabled := True;
+    TrayIcon1.Visible := True;
     TrayIcon1.Hint := 'Connected';
-    IdHTTPServer1.Active := true;
+    IdHTTPServer1.Active := True;
 
     if not FWebSocketStarted then
     begin
@@ -402,15 +266,24 @@ begin
     end;
 
     Hide;
+  except
+    on E: Exception do
+    begin
+      Timer1.Enabled := False;
+      lbstatus.Caption := 'Erro';
+      TrayIcon1.Hint := 'Disconnected';
+      MessageDlg('Erro ao conectar à balança', E.Message, mtError, [mbOK], 0);
+    end;
   end;
 end;
 
 procedure Tfrmmain.btDesconectar1Click(Sender: TObject);
 begin
-  Timer1.Enabled := false;
-  if Assigned(FScaleDevice) then
-    FScaleDevice.Disconnect;
-  Application.ProcessMessages();
+  Timer1.Enabled := False;
+  if Assigned(FScaleApp) then
+    FScaleApp.Disconnect;
+  lbstatus.Caption := 'Não conectado';
+  TrayIcon1.Hint := 'Disconnected';
 end;
 
 procedure Tfrmmain.btlogClick(Sender: TObject);
