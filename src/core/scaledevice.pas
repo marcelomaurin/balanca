@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, SyncObjs, LazSerial, scaleconfig, serialtransport,
-  toledoprotocol, scalecommands;
+  scaleprotocol, protocolfactory, toledoprotocol, scalecommands;
 
 type
   TScaleSnapshot = record
@@ -17,6 +17,8 @@ type
     LastRead: TDateTime;
     DiscardedFrames: QWord;
     IgnoredBytes: QWord;
+    ProtocolId: string;
+    ProtocolName: string;
   end;
 
   { TScaleDevice }
@@ -26,7 +28,7 @@ type
     FTransport: TSerialTransport;
     FLock: TCriticalSection;
     FConnected: Boolean;
-    FProtocol: TToledoProtocol;
+    FProtocol: TScaleProtocol;
     FPendingCommands: TStringList;
     FLastWeight: string;
     FLastFrame: string;
@@ -37,6 +39,8 @@ type
     function GetDiscardedFrames: QWord;
     function GetIgnoredBytes: QWord;
     function ExecuteCommand(ACommand: TScaleCommand): Boolean;
+    function GetProtocolId: string;
+    function GetProtocolName: string;
   public
     constructor Create(ASerial: TLazSerial);
     destructor Destroy; override;
@@ -44,6 +48,7 @@ type
     function Connect: Boolean;
     procedure Disconnect;
     procedure ProcessIncoming;
+    procedure SetProtocol(const AProtocolId: string);
     procedure RequestWeight;
     function SupportsCommand(ACommand: TScaleCommand): Boolean;
     function QueueCommand(ACommand: TScaleCommand): Boolean;
@@ -58,6 +63,8 @@ type
     property LastRead: TDateTime read FLastRead;
     property DiscardedFrames: QWord read GetDiscardedFrames;
     property IgnoredBytes: QWord read GetIgnoredBytes;
+    property ProtocolId: string read GetProtocolId;
+    property ProtocolName: string read GetProtocolName;
     property OnWeight: TWeightEvent read FOnWeight write FOnWeight;
   end;
 
@@ -70,7 +77,7 @@ begin
   FTransport := TSerialTransport.Create(ASerial);
   FLock := TCriticalSection.Create;
   FConnected := False;
-  FProtocol := TToledoProtocol.Create;
+  FProtocol := TScaleProtocolFactory.CreateProtocol('toledo');
   FProtocol.OnWeight := @ProtocolWeight;
   FPendingCommands := TStringList.Create;
   FLastWeight := '';
@@ -167,6 +174,37 @@ begin
   end;
 end;
 
+procedure TScaleDevice.SetProtocol(const AProtocolId: string);
+var
+  NewProtocol: TScaleProtocol;
+begin
+  if IsConnected then
+    raise Exception.Create('Não é possível trocar protocolo com a balança conectada');
+
+  if SameText(FProtocol.ProtocolId(), Trim(AProtocolId)) then
+    Exit;
+
+  NewProtocol := TScaleProtocolFactory.CreateProtocol(AProtocolId);
+  try
+    NewProtocol.OnWeight := @ProtocolWeight;
+    FProtocol.Free;
+    FProtocol := NewProtocol;
+  except
+    NewProtocol.Free;
+    raise;
+  end;
+
+  FLock.Acquire;
+  try
+    FLastWeight := '';
+    FLastFrame := '';
+    FLastRead := 0;
+    FLastError := '';
+  finally
+    FLock.Release;
+  end;
+end;
+
 procedure TScaleDevice.RequestWeight;
 begin
   ExecuteCommand(scReadWeight);
@@ -254,8 +292,10 @@ begin
     Result.LastFrame := FLastFrame;
     Result.LastError := FLastError;
     Result.LastRead := FLastRead;
-    Result.DiscardedFrames := FProtocol.DiscardedFrames;
-    Result.IgnoredBytes := FProtocol.IgnoredBytes;
+    Result.DiscardedFrames := FProtocol.DiscardedFrames();
+    Result.IgnoredBytes := FProtocol.IgnoredBytes();
+    Result.ProtocolId := FProtocol.ProtocolId();
+    Result.ProtocolName := FProtocol.DisplayName();
   finally
     FLock.Release;
   end;
@@ -266,7 +306,7 @@ begin
   FLock.Acquire;
   try
     FLastWeight := AWeight;
-    FLastFrame := FProtocol.LastFrame;
+    FLastFrame := FProtocol.LastFrame();
     FLastRead := Now;
   finally
     FLock.Release;
@@ -278,12 +318,22 @@ end;
 
 function TScaleDevice.GetDiscardedFrames: QWord;
 begin
-  Result := FProtocol.DiscardedFrames;
+  Result := FProtocol.DiscardedFrames();
 end;
 
 function TScaleDevice.GetIgnoredBytes: QWord;
 begin
-  Result := FProtocol.IgnoredBytes;
+  Result := FProtocol.IgnoredBytes();
+end;
+
+function TScaleDevice.GetProtocolId: string;
+begin
+  Result := FProtocol.ProtocolId();
+end;
+
+function TScaleDevice.GetProtocolName: string;
+begin
+  Result := FProtocol.DisplayName();
 end;
 
 end.

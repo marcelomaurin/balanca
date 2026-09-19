@@ -131,6 +131,7 @@ end;
 
 procedure TScaleApplication.ApplySettings;
 begin
+  FDevice.SetProtocol(FSettings.ProtocolId);
   FDevice.Config.Port := FSettings.COMPORT;
   FDevice.Config.BaudRate := FSettings.BAUDRATE;
   FDevice.Config.DataBits := FSettings.DATABIT;
