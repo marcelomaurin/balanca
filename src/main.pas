@@ -397,7 +397,8 @@ begin
 
     if not FWebSocketStarted then
     begin
-      FWebSocketStarted := LTCPComponent1.Listen(PortWebSocket);
+      LTCPComponent1.Listen(PortWebSocket);
+      FWebSocketStarted := True;
     end;
 
     Hide;
