@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, IdCustomHTTPServer, scaleapplication, scalecommands, scaledevice,
-  scalejson;
+  scalejson, legacyapi;
 
 type
   { TScaleHttpRouter }
@@ -137,7 +137,6 @@ procedure TScaleHttpRouter.HandleGet(ARequestInfo: TIdHTTPRequestInfo;
   AResponseInfo: TIdHTTPResponseInfo);
 var
   Path: string;
-  LegacyHtml: string;
 begin
   FApp.Metrics.IncHttpRequests;
   FApp.Logger.Debug('http', ARequestInfo.Command + ' ' + ARequestInfo.Document);
@@ -173,19 +172,10 @@ begin
   end
   else if SameText(Path, '/') or SameText(Path, '/legacy') then
   begin
-    LegacyHtml :=
-      '<html>' + LineEnding +
-      '<head>' + LineEnding +
-      '<title>Meu SRV</title>' + LineEnding +
-      '</head>' + LineEnding +
-      '<body>' + LineEnding +
-      FApp.Api.LegacyJson + LineEnding +
-      '</body>' + LineEnding +
-      '</html>' + LineEnding;
-
     AResponseInfo.ResponseNo := 200;
     AResponseInfo.ContentType := 'text/html; charset=utf-8';
-    AResponseInfo.ContentText := LegacyHtml;
+    AResponseInfo.ContentText :=
+      BuildLegacyHtmlResponse(FApp.Snapshot.LastWeight);
   end
   else
   begin
