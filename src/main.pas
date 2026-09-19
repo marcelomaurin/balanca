@@ -8,8 +8,8 @@ uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Buttons,
   ExtCtrls, Menus, PopupNotifier, LazSerial, FileUtil, LazFileUtils, LazSynaSer,
   synaser, IdHTTPServer, lNetComponents, LedNumber, setmain, registro, peso,
-  setup, lNet, log, IdCustomHTTPServer,  IdCompressionIntercept,
-  IdSSLOpenSSL, IdSchedulerOfThreadDefault,IdContext;
+  setup, lNet, log, IdCustomHTTPServer, IdCompressionIntercept,
+  IdSSLOpenSSL, IdSchedulerOfThreadDefault, IdContext, scaledevice;
 
 Const
     Version : string =  '0.04';
@@ -73,7 +73,8 @@ type
     procedure Timer1StopTimer(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
   private
-    Lbuffer: String;
+    FScaleDevice: TScaleDevice;
+    procedure ScaleWeight(Sender: TObject; const AWeight: string);
     procedure ListDev();
     function PegaSerial() : String;
     procedure SalvarContexto();
@@ -93,12 +94,19 @@ implementation
 
 { Tfrmmain }
 
+procedure Tfrmmain.ScaleWeight(Sender: TObject; const AWeight: string);
+begin
+  frmPeso.Peso(AWeight);
+  Application.ProcessMessages;
+end;
+
 procedure Tfrmmain.FormCreate(Sender: TObject);
 begin
-  Lbuffer:= '';
   frmlog := TfrmLog.create(self);
   frmsetup := Tfrmsetup.create(self);
   Fsetmain := TSetmain.create();
+  FScaleDevice := TScaleDevice.Create(LazSerial1);
+  FScaleDevice.OnWeight := @ScaleWeight;
   self.left := Fsetmain.posx;
   self.top := fsetmain.posy;
   frmSetup.edSerialPort.text := FSETMAIN.COMPORT;
@@ -113,6 +121,7 @@ end;
 procedure Tfrmmain.FormDestroy(Sender: TObject);
 begin
   SalvarContexto();
+  FScaleDevice.Free;
   Fsetmain.free();
   frmlog.free;
   frmRegistrar.free;
@@ -160,35 +169,9 @@ begin
 end;
 
 procedure Tfrmmain.LazSerial1RxData(Sender: TObject);
-var
-  info : string;
 begin
-
-  if( LazSerial1.DataAvailable) then
-  begin
-    info := LazSerial1.ReadData();
-  end;
-
-  if (#3 <> info)  then
-  begin
-     Lbuffer:=Lbuffer + info;
-  end
-  else
-  begin
-     if (#2 = info)  then
-     begin
-         //Nao faz nada
-     end
-     else
-     begin
-       //Memo1.Lines.Add(Lbuffer);
-       // frmpeso.lbPeso.Caption:=Lbuffer;
-        Lbuffer:= copy(LBuffer,pos('',Lbuffer)+1,Length(Lbuffer));
-        frmpeso.Peso(Lbuffer);
-       Application.ProcessMessages;
-       LBuffer := '';
-     end;
-  end;
+  if Assigned(FScaleDevice) then
+    FScaleDevice.ProcessIncoming;
 end;
 
 procedure Tfrmmain.LazSerial1Status(Sender: TObject; Reason: THookSerialReason;
@@ -268,7 +251,8 @@ end;
 
 procedure Tfrmmain.Timer1Timer(Sender: TObject);
 begin
-  LazSerial1.WriteData(#05);
+  if Assigned(FScaleDevice) then
+    FScaleDevice.RequestWeight;
   Application.ProcessMessages();
 end;
 
@@ -290,36 +274,29 @@ end;
 
 procedure Tfrmmain.btConectarClick(Sender: TObject);
 begin
+  FScaleDevice.Config.Port := FSETMAIN.COMPORT;
+  FScaleDevice.Config.BaudRate := FSETMAIN.BAUDRATE;
+  FScaleDevice.Config.DataBits := FSETMAIN.DATABIT;
+  FScaleDevice.Config.Parity := FSETMAIN.PARIDADE;
+  FScaleDevice.Config.StopBits := FSETMAIN.STOPBIT;
 
   try
-    LazSerial1.close;
-    LazSerial1.Device := FSETMAIN.COMPORT;
-    LazSerial1.BaudRate:= TBaudRate(FSETMAIN.BAUDRATE);
-    LazSerial1.DataBits:= TDataBits(FSETMAIN.DATABIT);
-    //LazSerial1.FlowControl:= TFlowControl(FSETMAIN.;
-    LazSerial1.Parity:= TParity(FSETMAIN.PARIDADE);
-    LazSerial1.StopBits:= TStopBits(FSETMAIN.STOPBIT);
-
-    LazSerial1.Open;
+    FScaleDevice.Connect;
     Application.ProcessMessages();
-
   finally
-    Timer1.Enabled:= not Timer1.Enabled;
-    TrayIcon1.Visible:=true;
-    TrayIcon1.Hint:='Connected';
-    //LTCPComponent1.Listen(PortBalanca);
-    IdHTTPServer1.active := true;
-    hide;
+    Timer1.Enabled := not Timer1.Enabled;
+    TrayIcon1.Visible := true;
+    TrayIcon1.Hint := 'Connected';
+    IdHTTPServer1.Active := true;
+    Hide;
   end;
-
-
 end;
 
 procedure Tfrmmain.btDesconectar1Click(Sender: TObject);
 begin
-  //SdpoSerial1.close;
-  Timer1.Enabled:= false;
-  LazSerial1.close;
+  Timer1.Enabled := false;
+  if Assigned(FScaleDevice) then
+    FScaleDevice.Disconnect;
   Application.ProcessMessages();
 end;
 
