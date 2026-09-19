@@ -169,35 +169,9 @@ begin
 end;
 
 procedure Tfrmmain.LazSerial1RxData(Sender: TObject);
-var
-  info : string;
 begin
-
-  if( LazSerial1.DataAvailable) then
-  begin
-    info := LazSerial1.ReadData();
-  end;
-
-  if (#3 <> info)  then
-  begin
-     Lbuffer:=Lbuffer + info;
-  end
-  else
-  begin
-     if (#2 = info)  then
-     begin
-         //Nao faz nada
-     end
-     else
-     begin
-       //Memo1.Lines.Add(Lbuffer);
-       // frmpeso.lbPeso.Caption:=Lbuffer;
-        Lbuffer:= copy(LBuffer,pos('',Lbuffer)+1,Length(Lbuffer));
-        frmpeso.Peso(Lbuffer);
-       Application.ProcessMessages;
-       LBuffer := '';
-     end;
-  end;
+  if Assigned(FScaleDevice) then
+    FScaleDevice.ProcessIncoming;
 end;
 
 procedure Tfrmmain.LazSerial1Status(Sender: TObject; Reason: THookSerialReason;
