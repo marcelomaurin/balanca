@@ -92,6 +92,10 @@ begin
 
   Result :=
     Base + ',' +
+    '"scale":{' +
+      '"protocol":' + JsonString(FDevice.ProtocolId) + ',' +
+      '"protocol_name":' + JsonString(FDevice.ProtocolName) +
+    '},' +
     '"security":{' +
       '"http_bind":' + JsonString(FSettings.HttpBind) + ',' +
       '"websocket_bind":' + JsonString(FSettings.WebSocketBind) + ',' +
