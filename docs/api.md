@@ -101,6 +101,10 @@ Exemplo resumido:
     "api_key_enabled": false,
     "allow_remote_without_api_key": false,
     "commands_enabled": true
+  },
+  "compatibility": {
+    "legacy_http_enabled": true,
+    "legacy_config_migration": true
   }
 }
 ```
@@ -156,3 +160,12 @@ As rotas `/` e `/legacy` mantêm a resposta histórica em HTML contendo:
 ```
 
 Isso permite migrar aplicações antigas gradualmente.
+
+As rotas podem ser desligadas com:
+
+```ini
+[compatibility]
+legacy_http_enabled=0
+```
+
+Veja [legacy-compatibility.md](legacy-compatibility.md).
