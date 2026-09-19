@@ -113,6 +113,11 @@ begin
       '"allow_remote_without_api_key":' +
         JsonBoolean(FSettings.AllowRemoteWithoutApiKey) + ',' +
       '"commands_enabled":' + JsonBoolean(FSettings.CommandsEnabled) +
+    '},' +
+    '"compatibility":{' +
+      '"legacy_http_enabled":' + JsonBoolean(FSettings.LegacyHttpEnabled) + ',' +
+      '"legacy_config_migration":' +
+        JsonBoolean(FSettings.LegacyConfigMigration) +
     '}' +
     '}';
 end;
