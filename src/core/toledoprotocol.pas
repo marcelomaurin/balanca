@@ -5,7 +5,7 @@ unit toledoprotocol;
 interface
 
 uses
-  Classes, SysUtils, scalecommands;
+  Classes, SysUtils, scalecommands, scaleprotocol, protocolfactory;
 
 const
   TOLEDO_ENQ = #$05;
@@ -14,15 +14,13 @@ const
   TOLEDO_MAX_PAYLOAD = 64;
 
 type
-  TWeightEvent = procedure(Sender: TObject; const AWeight: string) of object;
-
   TToledoParserState = (
     tpsWaitingSTX,
     tpsReadingPayload
   );
 
   { TToledoProtocol }
-  TToledoProtocol = class
+  TToledoProtocol = class(TScaleProtocol)
   private
     FBuffer: string;
     FState: TToledoParserState;
@@ -30,7 +28,6 @@ type
     FLastPayload: string;
     FDiscardedFrames: QWord;
     FIgnoredBytes: QWord;
-    FOnWeight: TWeightEvent;
 
     procedure StartFrame;
     procedure DiscardFrame;
@@ -39,17 +36,20 @@ type
   public
     constructor Create;
 
-    procedure Reset;
-    procedure Feed(const AData: string);
-    function SupportsCommand(ACommand: TScaleCommand): Boolean;
-    function TryEncodeCommand(ACommand: TScaleCommand; out AData: string): Boolean;
+    procedure Reset; override;
+    procedure Feed(const AData: string); override;
+    function SupportsCommand(ACommand: TScaleCommand): Boolean; override;
+    function TryEncodeCommand(ACommand: TScaleCommand;
+      out AData: string): Boolean; override;
+
+    function ProtocolId: string; override;
+    function DisplayName: string; override;
+    function LastFrame: string; override;
+    function LastPayload: string; override;
+    function DiscardedFrames: QWord; override;
+    function IgnoredBytes: QWord; override;
 
     property State: TToledoParserState read FState;
-    property LastFrame: string read FLastFrame;
-    property LastPayload: string read FLastPayload;
-    property DiscardedFrames: QWord read FDiscardedFrames;
-    property IgnoredBytes: QWord read FIgnoredBytes;
-    property OnWeight: TWeightEvent read FOnWeight write FOnWeight;
   end;
 
 implementation
@@ -86,8 +86,7 @@ begin
   FLastPayload := FBuffer;
   FLastFrame := TOLEDO_STX + FBuffer + TOLEDO_ETX;
 
-  if Assigned(FOnWeight) then
-    FOnWeight(Self, FLastPayload);
+  EmitWeight(FLastPayload);
 
   FBuffer := '';
   FState := tpsWaitingSTX;
@@ -162,5 +161,40 @@ begin
     scReadWeight: AData := TOLEDO_ENQ;
   end;
 end;
+
+function TToledoProtocol.ProtocolId: string;
+begin
+  Result := 'toledo';
+end;
+
+function TToledoProtocol.DisplayName: string;
+begin
+  Result := 'Toledo / PRIX compatível';
+end;
+
+function TToledoProtocol.LastFrame: string;
+begin
+  Result := FLastFrame;
+end;
+
+function TToledoProtocol.LastPayload: string;
+begin
+  Result := FLastPayload;
+end;
+
+function TToledoProtocol.DiscardedFrames: QWord;
+begin
+  Result := FDiscardedFrames;
+end;
+
+function TToledoProtocol.IgnoredBytes: QWord;
+begin
+  Result := FIgnoredBytes;
+end;
+
+initialization
+  TScaleProtocolFactory.RegisterProtocol('toledo', TToledoProtocol);
+  TScaleProtocolFactory.RegisterProtocol('prix3', TToledoProtocol);
+  TScaleProtocolFactory.RegisterProtocol('toledo-prix3', TToledoProtocol);
 
 end.
