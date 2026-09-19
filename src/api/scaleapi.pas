@@ -5,7 +5,7 @@ unit scaleapi;
 interface
 
 uses
-  Classes, SysUtils, DateUtils, scaledevice, setmain;
+  Classes, SysUtils, scaledevice, setmain, scalejson;
 
 type
   { TScaleApi }
@@ -14,10 +14,6 @@ type
     FDevice: TScaleDevice;
     FSettings: TSetMain;
 
-    function JsonEscape(const AValue: string): string;
-    function JsonString(const AValue: string): string;
-    function JsonBoolean(AValue: Boolean): string;
-    function IsoDateTime(AValue: TDateTime): string;
   public
     constructor Create(ADevice: TScaleDevice; ASettings: TSetMain);
 
@@ -46,123 +42,59 @@ begin
   FSettings := ASettings;
 end;
 
-function TScaleApi.JsonEscape(const AValue: string): string;
-var
-  I: SizeInt;
-  C: Char;
-begin
-  Result := '';
-
-  for I := 1 to Length(AValue) do
-  begin
-    C := AValue[I];
-
-    case C of
-      '"': Result := Result + '\"';
-      '\': Result := Result + '\\';
-      #8: Result := Result + '\b';
-      #9: Result := Result + '\t';
-      #10: Result := Result + '\n';
-      #12: Result := Result + '\f';
-      #13: Result := Result + '\r';
-    else
-      if Ord(C) < 32 then
-        Result := Result + '\u' + IntToHex(Ord(C), 4)
-      else
-        Result := Result + C;
-    end;
-  end;
-end;
-
-function TScaleApi.JsonString(const AValue: string): string;
-begin
-  Result := '"' + JsonEscape(AValue) + '"';
-end;
-
-function TScaleApi.JsonBoolean(AValue: Boolean): string;
-begin
-  if AValue then
-    Result := 'true'
-  else
-    Result := 'false';
-end;
-
-function TScaleApi.IsoDateTime(AValue: TDateTime): string;
-begin
-  if AValue <= 0 then
-    Exit('');
-
-  Result := FormatDateTime('yyyy"-"mm"-"dd"T"hh":"nn":"ss', AValue);
-end;
-
 function TScaleApi.WeightJson: string;
 var
   Snapshot: TScaleSnapshot;
+  JsonSnapshot: TScaleJsonSnapshot;
 begin
   Snapshot := FDevice.GetSnapshot;
-
-  Result :=
-    '{' +
-      '"weight":' + JsonString(Snapshot.LastWeight) + ',' +
-      '"connected":' + JsonBoolean(Snapshot.Connected) + ',' +
-      '"last_read":' + JsonString(IsoDateTime(Snapshot.LastRead)) +
-    '}';
+  JsonSnapshot.Connected := Snapshot.Connected;
+  JsonSnapshot.Weight := Snapshot.LastWeight;
+  JsonSnapshot.LastRead := Snapshot.LastRead;
+  JsonSnapshot.LastError := Snapshot.LastError;
+  JsonSnapshot.DiscardedFrames := Snapshot.DiscardedFrames;
+  JsonSnapshot.IgnoredBytes := Snapshot.IgnoredBytes;
+  Result := BuildWeightJson(JsonSnapshot);
 end;
 
 function TScaleApi.StatusJson: string;
 var
   Snapshot: TScaleSnapshot;
+  JsonSnapshot: TScaleJsonSnapshot;
 begin
   Snapshot := FDevice.GetSnapshot;
-
-  Result :=
-    '{' +
-      '"connected":' + JsonBoolean(Snapshot.Connected) + ',' +
-      '"weight":' + JsonString(Snapshot.LastWeight) + ',' +
-      '"last_read":' + JsonString(IsoDateTime(Snapshot.LastRead)) + ',' +
-      '"last_error":' + JsonString(Snapshot.LastError) + ',' +
-      '"discarded_frames":' + IntToStr(Int64(Snapshot.DiscardedFrames)) + ',' +
-      '"ignored_bytes":' + IntToStr(Int64(Snapshot.IgnoredBytes)) +
-    '}';
+  JsonSnapshot.Connected := Snapshot.Connected;
+  JsonSnapshot.Weight := Snapshot.LastWeight;
+  JsonSnapshot.LastRead := Snapshot.LastRead;
+  JsonSnapshot.LastError := Snapshot.LastError;
+  JsonSnapshot.DiscardedFrames := Snapshot.DiscardedFrames;
+  JsonSnapshot.IgnoredBytes := Snapshot.IgnoredBytes;
+  Result := BuildStatusJson(JsonSnapshot);
 end;
 
 function TScaleApi.ConfigJson: string;
 begin
-  Result :=
-    '{' +
-      '"serial":{' +
-        '"port":' + JsonString(FSettings.COMPORT) + ',' +
-        '"baudrate_index":' + IntToStr(FSettings.BAUDRATE) + ',' +
-        '"databit_index":' + IntToStr(FSettings.DATABIT) + ',' +
-        '"parity_index":' + IntToStr(FSettings.PARIDADE) + ',' +
-        '"stopbit_index":' + IntToStr(FSettings.STOPBIT) +
-      '},' +
-      '"server":{' +
-        '"port":8097,' +
-        '"websocket_port":8098,' +
-        '"websocket_path":"/weight"' +
-      '}' +
-    '}';
+  Result := BuildConfigJson(
+    FSettings.COMPORT,
+    FSettings.BAUDRATE,
+    FSettings.DATABIT,
+    FSettings.PARIDADE,
+    FSettings.STOPBIT,
+    8097,
+    8098,
+    '/weight'
+  );
 end;
 
 function TScaleApi.NotFoundJson(const APath: string): string;
 begin
-  Result :=
-    '{' +
-      '"error":"not_found",' +
-      '"path":' + JsonString(APath) +
-    '}';
+  Result := BuildNotFoundJson(APath);
 end;
 
 function TScaleApi.CommandResultJson(const ACommand: string; AAccepted: Boolean;
   const AMessage: string): string;
 begin
-  Result :=
-    '{' +
-      '"command":' + JsonString(ACommand) + ',' +
-      '"accepted":' + JsonBoolean(AAccepted) + ',' +
-      '"message":' + JsonString(AMessage) +
-    '}';
+  Result := BuildCommandResultJson(ACommand, AAccepted, AMessage);
 end;
 
 function TScaleApi.LegacyJson: string;
@@ -170,13 +102,7 @@ var
   Snapshot: TScaleSnapshot;
 begin
   Snapshot := FDevice.GetSnapshot;
-
-  Result :=
-    '{' +
-      '"rs":{' +
-        '"peso":' + JsonString(Snapshot.LastWeight) +
-      '}' +
-    '}';
+  Result := BuildLegacyJson(Snapshot.LastWeight);
 end;
 
 end.

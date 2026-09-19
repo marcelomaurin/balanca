@@ -72,7 +72,8 @@ type
     procedure SetTipoImp(Value: Integer);
     procedure SetModeloImp(Value: Integer);
   public
-    constructor Create;
+    constructor Create; overload;
+    constructor Create(const AConfigDir: string); overload;
     destructor Destroy; override;
 
     procedure SalvaContexto;
@@ -332,7 +333,18 @@ constructor TSetMain.Create;
 begin
   inherited Create;
 
-  FPATH := GetAppConfigDir(False);
+  FPATH := IncludeTrailingPathDelimiter(GetAppConfigDir(False));
+  if not DirectoryExists(FPATH) then
+    ForceDirectories(FPATH);
+
+  CarregaContexto;
+end;
+
+constructor TSetMain.Create(const AConfigDir: string);
+begin
+  inherited Create;
+
+  FPATH := IncludeTrailingPathDelimiter(AConfigDir);
   if not DirectoryExists(FPATH) then
     ForceDirectories(FPATH);
 
