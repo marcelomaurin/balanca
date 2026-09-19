@@ -94,6 +94,11 @@ src/
     balanca_service.lpi
     headlesshost.pas
 
+  legacy/
+    legacyapi.pas
+    legacyconfig.pas
+    legacysettings.pas
+
 simulator/
   arduino/
     balanca/
@@ -137,6 +142,10 @@ websocket_bind=127.0.0.1
 api_key=
 allow_remote_without_api_key=0
 commands_enabled=1
+
+[compatibility]
+legacy_http_enabled=1
+legacy_config_migration=1
 ```
 
 O formato legado `CHAVE:valor` ainda pode ser lido e é migrado automaticamente para INI.
@@ -474,6 +483,10 @@ As rotas:
 ```
 
 preservam o formato histórico para consumidores antigos.
+
+Essa compatibilidade está isolada em `src/legacy` e pode ser desligada por configuração sem alterar a API v1.
+
+Veja [docs/legacy-compatibility.md](docs/legacy-compatibility.md).
 
 ## Documentação
 
