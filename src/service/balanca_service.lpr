@@ -68,7 +68,7 @@ begin
       on E: Exception do
       begin
         WriteLn(StdErr, 'erro fatal: ', E.Message);
-        HaltCode := 1;
+        ExitCode := 1;
       end;
     end;
   finally
