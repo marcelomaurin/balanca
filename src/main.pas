@@ -9,7 +9,7 @@ uses
   ExtCtrls, Menus, PopupNotifier, LazSerial, FileUtil, LazFileUtils, LazSynaSer,
   synaser, IdHTTPServer, lNetComponents, LedNumber, setmain, registro, peso,
   setup, lNet, log, IdCustomHTTPServer, IdCompressionIntercept,
-  IdSSLOpenSSL, IdSchedulerOfThreadDefault, IdContext, scaledevice;
+  IdSSLOpenSSL, IdSchedulerOfThreadDefault, IdContext, scaledevice, scaleapi;
 
 Const
     Version : string =  '0.04';
@@ -74,6 +74,7 @@ type
     procedure Timer1Timer(Sender: TObject);
   private
     FScaleDevice: TScaleDevice;
+    FScaleApi: TScaleApi;
     procedure ScaleWeight(Sender: TObject; const AWeight: string);
     procedure ListDev();
     function PegaSerial() : String;
@@ -107,6 +108,7 @@ begin
   Fsetmain := TSetmain.create();
   FScaleDevice := TScaleDevice.Create(LazSerial1);
   FScaleDevice.OnWeight := @ScaleWeight;
+  FScaleApi := TScaleApi.Create(FScaleDevice, Fsetmain);
   self.left := Fsetmain.posx;
   self.top := fsetmain.posy;
   frmSetup.edSerialPort.text := FSETMAIN.COMPORT;
@@ -121,6 +123,7 @@ end;
 procedure Tfrmmain.FormDestroy(Sender: TObject);
 begin
   SalvarContexto();
+  FScaleApi.Free;
   FScaleDevice.Free;
   Fsetmain.free();
   frmlog.free;
@@ -131,25 +134,53 @@ end;
 procedure Tfrmmain.IdHTTPServer1CommandGet(AContext: TIdContext;
   ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
 var
-  buffer: ansistring;
+  Path: string;
+  LegacyHtml: string;
 begin
- //  buffer :='HTTP/1.1 200 OK '+#10;
- //buffer := buffer +'Content-Type: text/html'+#10;
- //buffer := buffer + '<!DOCTYPE HTML>'+#10;
- buffer :=  '<html>'+#10;
- buffer := buffer + '<head>'+#10;
- buffer := buffer + '<title>Meu SRV</title>'+#10;
- buffer := buffer + '</head>'+#10;
- buffer := buffer + '<body>'+#10;
- buffer := buffer + '{';
- buffer := buffer + '"rs":{';
- buffer := buffer + '"peso":' ;
- buffer := buffer + '"'+frmpeso.lbPeso.Caption+'"';
- buffer := buffer + '}';
- buffer := buffer + '}'+#10;
- buffer := buffer + '</body>'+#10;
- buffer := buffer + '</html>'+#10;
- AResponseInfo.ContentText := buffer;
+  Path := ARequestInfo.Document;
+
+  if SameText(Path, '/api/v1/weight') then
+  begin
+    AResponseInfo.ResponseNo := 200;
+    AResponseInfo.ContentType := 'application/json; charset=utf-8';
+    AResponseInfo.ContentText := FScaleApi.WeightJson;
+  end
+  else if SameText(Path, '/api/v1/status') then
+  begin
+    AResponseInfo.ResponseNo := 200;
+    AResponseInfo.ContentType := 'application/json; charset=utf-8';
+    AResponseInfo.ContentText := FScaleApi.StatusJson;
+  end
+  else if SameText(Path, '/api/v1/config') then
+  begin
+    AResponseInfo.ResponseNo := 200;
+    AResponseInfo.ContentType := 'application/json; charset=utf-8';
+    AResponseInfo.ContentText := FScaleApi.ConfigJson;
+  end
+  else if SameText(Path, '/') or SameText(Path, '/legacy') then
+  begin
+    // Compatibilidade com clientes antigos: mantém HTML contendo o objeto
+    // {"rs":{"peso":"..."}} que era retornado pela aplicação original.
+    LegacyHtml :=
+      '<html>' + LineEnding +
+      '<head>' + LineEnding +
+      '<title>Meu SRV</title>' + LineEnding +
+      '</head>' + LineEnding +
+      '<body>' + LineEnding +
+      FScaleApi.LegacyJson + LineEnding +
+      '</body>' + LineEnding +
+      '</html>' + LineEnding;
+
+    AResponseInfo.ResponseNo := 200;
+    AResponseInfo.ContentType := 'text/html; charset=utf-8';
+    AResponseInfo.ContentText := LegacyHtml;
+  end
+  else
+  begin
+    AResponseInfo.ResponseNo := 404;
+    AResponseInfo.ContentType := 'application/json; charset=utf-8';
+    AResponseInfo.ContentText := FScaleApi.NotFoundJson(Path);
+  end;
 end;
 
 procedure Tfrmmain.LazSerial1BlockSerialStatus(Sender: TObject;
