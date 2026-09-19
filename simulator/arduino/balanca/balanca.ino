@@ -1,154 +1,200 @@
-
 #define ENQ  0x05
 #define ACK  0x06
 #define NAK  0x25
 #define STX  0x02
 #define ETX  0x03
-#define CR  0x0D
-#define SWA  "A"
-#define SWB  "B"
-#define SWC  "C"
-#define NNN  "+"
-#define DeltaT 60 /*Tempo de mudança de valor da balanca*/
+#define CR   0x0D
 
-float peso;
-float pulo = 0.4; //400 gramas
-float pesototal;
-float tara;
-unsigned long meutempo;
-unsigned long diferencadetempo;
-String buffer;
-char strPeso[6];
-char strTara[6];
+#define DELTA_T_SECONDS 60UL
+#define BUTTON_DEBOUNCE_MS 40UL
+#define LOOP_DELAY_MS 20UL
 
-int pushButtonA = 13;
-int pushButtonB = 7;
-int pushButtonC = 8;
+const uint8_t PIN_BUTTON_UP = 13;
+const uint8_t PIN_BUTTON_DOWN = 7;
+const uint8_t PIN_BUTTON_AUX = 8;
 
+const float WEIGHT_STEP = 0.4f;
 
-int flgContinuo;
-int flgMod;
-void Wellcome(){
-  Serial.println('Emulador de protocolo');
-  Serial.println('Emulador de Balança Toledo!');
+float peso = 0.0f;
+float pesototal = 0.0f;
+float tara = 0.0f;
 
+unsigned long lastAutoChangeMs = 0;
+
+bool flgContinuo = true;
+bool flgMod = false;
+
+bool lastButtonUpReading = HIGH;
+bool stableButtonUpState = HIGH;
+unsigned long lastButtonUpChangeMs = 0;
+
+bool lastButtonDownReading = HIGH;
+bool stableButtonDownState = HIGH;
+unsigned long lastButtonDownChangeMs = 0;
+
+void Welcome() {
+  Serial.println("Emulador de protocolo");
+  Serial.println("Emulador de Balanca Toledo!");
 }
 
-void Start_Button(){
-  pinMode(pushButtonA, INPUT);
-  pinMode(pushButtonB, INPUT);
-  pinMode(pushButtonC, OUTPUT);
+void StartButtons() {
+  pinMode(PIN_BUTTON_UP, INPUT_PULLUP);
+  pinMode(PIN_BUTTON_DOWN, INPUT_PULLUP);
+  pinMode(PIN_BUTTON_AUX, OUTPUT);
 }
 
 void setup() {
-  Start_Button();
-  // initialize serial:
+  StartButtons();
   Serial.begin(2400);
-  //Wellcome();
-  tara = 0;
-  pesototal = 0;
-  //peso = random(1000)/100;
-  peso = 0;
-  flgContinuo = 1;
-  flgMod = 0;
-  //Mudou de nivel:
-  meutempo = millis();
 
+  tara = 0.0f;
+  pesototal = 0.0f;
+  peso = 0.0f;
+
+  flgContinuo = true;
+  flgMod = false;
+
+  lastAutoChangeMs = millis();
 }
 
-char Checksum(String info){
-  char dado;
-  int a;
-  dado = info[0]; 
-  for (a=1;a < info.length();a++){
-    dado = dado ^ info[a];
+void SendWeight() {
+  char weightText[16];
+  char frame[20];
+  float currentWeight = pesototal + peso - tara;
+
+  // Mantem largura minima de 7 caracteres e 3 casas decimais.
+  // O buffer possui folga suficiente para sinal, valor, ponto e terminador.
+  dtostrf(currentWeight, 7, 3, weightText);
+
+  for (uint8_t i = 0; weightText[i] != '\0'; i++) {
+    if (weightText[i] == ' ') {
+      weightText[i] = '0';
+    }
   }
-  return dado;
+
+  size_t pos = 0;
+  frame[pos++] = (char)STX;
+  frame[pos++] = '+';
+
+  for (uint8_t i = 0; weightText[i] != '\0' && pos < sizeof(frame) - 2; i++) {
+    frame[pos++] = weightText[i];
+  }
+
+  frame[pos++] = (char)ETX;
+  frame[pos] = '\0';
+
+  // Nao usa println: o protocolo termina exatamente no ETX.
+  Serial.write((const uint8_t *)frame, pos);
 }
 
+void HandleCommand(char c) {
+  switch (c) {
+    case ENQ:
+      SendWeight();
+      break;
 
-void EnviaPeso(){     
-    dtostrf((pesototal+peso-tara),7,3,strPeso);
-    //scanf(strPeso,"%6d",(pesototal+peso-tara));
-    scanf(strTara,"%6d",tara);
-    buffer = String(char(STX)) + String(NNN) + String(strPeso) + String(char(ETX));
-    //buffer = buffer + Checksum(buffer);
-    buffer.replace(" ","0");
-    Serial.println(buffer);
+    case 'T':
+      tara = peso + pesototal;
+      break;
+
+    case 'P':
+      pesototal = 0.0f;
+      break;
+
+    case 'Z':
+      tara = 0.0f;
+      break;
+
+    case 'C':
+      flgContinuo = !flgContinuo;
+      break;
+
+    case 'N':
+      pesototal += peso;
+      peso = random(1000) / 100.0f;
+      break;
+
+    case 'M':
+      flgMod = !flgMod;
+      break;
+  }
 }
 
-
-void LeBotaoB(){
-   int buttonStateB = digitalRead(pushButtonB);
-   if (buttonStateB == HIGH){     
-     peso =peso - pulo;
-     if (peso <0){
-      peso = 0;
-     }
-   }
+void ProcessSerial() {
+  while (Serial.available() > 0) {
+    HandleCommand((char)Serial.read());
+  }
 }
 
-void LeBotaoA(){
-   int buttonStateA = digitalRead(pushButtonA);
-   if (buttonStateA == HIGH){
-     peso = peso + pulo;
-   } 
+bool DebouncedPressed(
+  uint8_t pin,
+  bool &lastReading,
+  bool &stableState,
+  unsigned long &lastChangeMs
+) {
+  bool reading = digitalRead(pin);
+
+  if (reading != lastReading) {
+    lastChangeMs = millis();
+    lastReading = reading;
+  }
+
+  if ((millis() - lastChangeMs) >= BUTTON_DEBOUNCE_MS &&
+      reading != stableState) {
+    stableState = reading;
+
+    // INPUT_PULLUP: pressionado = LOW.
+    if (stableState == LOW) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void ProcessButtons() {
+  if (DebouncedPressed(
+        PIN_BUTTON_UP,
+        lastButtonUpReading,
+        stableButtonUpState,
+        lastButtonUpChangeMs)) {
+    peso += WEIGHT_STEP;
+  }
+
+  if (DebouncedPressed(
+        PIN_BUTTON_DOWN,
+        lastButtonDownReading,
+        stableButtonDownState,
+        lastButtonDownChangeMs)) {
+    peso -= WEIGHT_STEP;
+    if (peso < 0.0f) {
+      peso = 0.0f;
+    }
+  }
+}
+
+void ProcessAutoMode() {
+  if (!flgMod) {
+    return;
+  }
+
+  unsigned long now = millis();
+
+  if ((now - lastAutoChangeMs) >= (DELTA_T_SECONDS * 1000UL)) {
+    lastAutoChangeMs = now;
+    pesototal += peso;
+    peso = random(1000) / 100.0f;
+  }
 }
 
 void loop() {
-  //Serial.println("Leu");
-  // if there's any serial available, read it:
-  while (Serial.available() > 0) {
-    //Recebe o CMD   
-    char c = Serial.read();
-    if (c==ENQ){
-      EnviaPeso();  
-    }
-    if (c=='T'){
-      tara = peso+pesototal;  
-    }
-    if (c=='P'){
-      pesototal = 0;  
-    }    
-    if (c=='Z'){
-      tara = 0;  
-    }
-    if (c=='C'){
-      flgContinuo = ~flgContinuo;  
-      if (flgContinuo!=0){
-        //Serial.println("Continuo!");
-      }
-    }
-    if (c=='N'){
-       //Serial.println("Novo valor");
-       pesototal = pesototal + peso; /*Acumula peso anterior*/ 
-       peso = random(1000)/100;
-    }    
-    if (c=='M'){
-       flgMod = ~flgMod;  
-    }
-    
-  }
-  //Serial.println("OK!");
-  if (flgContinuo!=0) {
-    EnviaPeso();
+  ProcessSerial();
+  ProcessButtons();
+  ProcessAutoMode();
+
+  if (flgContinuo) {
+    SendWeight();
   }
 
-  if (flgMod!=0) {
-
-    diferencadetempo = (millis() - meutempo)/1000;
-    //Serial.print("Tempo ");
-    //Serial.println(diferencadetempo);
-    if (diferencadetempo > DeltaT) {
-        meutempo = millis();
-        
-        //Serial.println("Novo valor");
-        pesototal = pesototal + peso; /*Acumula peso anterior*/ 
-        peso = random(1000)/100;        
-    }
-  }  
-  LeBotaoA();
-  LeBotaoB();
-  delay(1000);
-  //Serial.println("OK!");
+  delay(LOOP_DELAY_MS);
 }
