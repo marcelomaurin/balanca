@@ -73,8 +73,10 @@ begin
 end;
 
 function TScaleApi.ConfigJson: string;
+var
+  Base: string;
 begin
-  Result := BuildConfigJson(
+  Base := BuildConfigJson(
     FSettings.COMPORT,
     FSettings.BAUDRATE,
     FSettings.DATABIT,
@@ -84,6 +86,21 @@ begin
     8098,
     '/weight'
   );
+
+  if (Length(Base) > 0) and (Base[Length(Base)] = '}') then
+    Delete(Base, Length(Base), 1);
+
+  Result :=
+    Base + ',' +
+    '"security":{' +
+      '"http_bind":' + JsonString(FSettings.HttpBind) + ',' +
+      '"websocket_bind":' + JsonString(FSettings.WebSocketBind) + ',' +
+      '"api_key_enabled":' + JsonBoolean(Trim(FSettings.ApiKey) <> '') + ',' +
+      '"allow_remote_without_api_key":' +
+        JsonBoolean(FSettings.AllowRemoteWithoutApiKey) + ',' +
+      '"commands_enabled":' + JsonBoolean(FSettings.CommandsEnabled) +
+    '}' +
+    '}';
 end;
 
 function TScaleApi.NotFoundJson(const APath: string): string;
