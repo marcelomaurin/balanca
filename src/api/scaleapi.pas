@@ -138,7 +138,9 @@ begin
         '"stopbit_index":' + IntToStr(FSettings.STOPBIT) +
       '},' +
       '"server":{' +
-        '"port":8097' +
+        '"port":8097,' +
+        '"websocket_port":8098,' +
+        '"websocket_path":"/weight"' +
       '}' +
     '}';
 end;

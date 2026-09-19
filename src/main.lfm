@@ -260,6 +260,7 @@ object frmmain: Tfrmmain
     Port = 0
     OnReceive = LTCPComponent1Receive
     OnConnect = LTCPComponent1Connect
+    OnDisconnect = LTCPComponent1Disconnect
     Timeout = 0
     ReuseAddress = True
     Left = 48
