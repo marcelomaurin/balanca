@@ -275,6 +275,16 @@ procedure Tfrmmain.btConectarClick(Sender: TObject);
 begin
   Timer1.Enabled := True;
   TrayIcon1.Visible := True;
+
+  if IdHTTPServer1.Active then
+    IdHTTPServer1.Active := False;
+
+  IdHTTPServer1.Bindings.Clear;
+  with IdHTTPServer1.Bindings.Add do
+  begin
+    IP := FSETMAIN.HttpBind;
+    Port := PortBalanca;
+  end;
   IdHTTPServer1.Active := True;
 
   if not FWebSocketStarted then

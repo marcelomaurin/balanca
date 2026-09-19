@@ -44,6 +44,11 @@ type
     FResponseTimeoutMs: Integer;
     FReconnectInitialMs: Integer;
     FReconnectMaxMs: Integer;
+    FHttpBind: string;
+    FWebSocketBind: string;
+    FApiKey: string;
+    FAllowRemoteWithoutApiKey: Boolean;
+    FCommandsEnabled: Boolean;
 
     procedure Default;
     function ConfigFileName: string;
@@ -109,6 +114,12 @@ type
     property ResponseTimeoutMs: Integer read FResponseTimeoutMs write FResponseTimeoutMs;
     property ReconnectInitialMs: Integer read FReconnectInitialMs write FReconnectInitialMs;
     property ReconnectMaxMs: Integer read FReconnectMaxMs write FReconnectMaxMs;
+    property HttpBind: string read FHttpBind write FHttpBind;
+    property WebSocketBind: string read FWebSocketBind write FWebSocketBind;
+    property ApiKey: string read FApiKey write FApiKey;
+    property AllowRemoteWithoutApiKey: Boolean read FAllowRemoteWithoutApiKey
+      write FAllowRemoteWithoutApiKey;
+    property CommandsEnabled: Boolean read FCommandsEnabled write FCommandsEnabled;
     property Path: string read FPATH;
   end;
 
@@ -176,6 +187,12 @@ begin
   FResponseTimeoutMs := 3000;
   FReconnectInitialMs := 1000;
   FReconnectMaxMs := 30000;
+
+  FHttpBind := '127.0.0.1';
+  FWebSocketBind := '127.0.0.1';
+  FApiKey := '';
+  FAllowRemoteWithoutApiKey := False;
+  FCommandsEnabled := True;
 end;
 
 function TSetMain.ConfigFileName: string;
@@ -338,6 +355,18 @@ begin
     if FReconnectMaxMs < FReconnectInitialMs then
       FReconnectMaxMs := FReconnectInitialMs;
 
+    FHttpBind := Trim(Ini.ReadString('security', 'http_bind', FHttpBind));
+    FWebSocketBind := Trim(Ini.ReadString('security', 'websocket_bind', FWebSocketBind));
+    FApiKey := Trim(Ini.ReadString('security', 'api_key', FApiKey));
+    FAllowRemoteWithoutApiKey := Ini.ReadBool('security',
+      'allow_remote_without_api_key', FAllowRemoteWithoutApiKey);
+    FCommandsEnabled := Ini.ReadBool('security', 'commands_enabled', FCommandsEnabled);
+
+    if FHttpBind = '' then
+      FHttpBind := '127.0.0.1';
+    if FWebSocketBind = '' then
+      FWebSocketBind := '127.0.0.1';
+
     FEmpresa := Ini.ReadString('legado', 'empresa', FEmpresa);
     FLocalizacao := Ini.ReadString('legado', 'localizacao', FLocalizacao);
     FTipo1 := Ini.ReadString('legado', 'tipo1', FTipo1);
@@ -403,6 +432,13 @@ begin
     Ini.WriteInteger('reconnect', 'response_timeout_ms', FResponseTimeoutMs);
     Ini.WriteInteger('reconnect', 'initial_delay_ms', FReconnectInitialMs);
     Ini.WriteInteger('reconnect', 'max_delay_ms', FReconnectMaxMs);
+
+    Ini.WriteString('security', 'http_bind', FHttpBind);
+    Ini.WriteString('security', 'websocket_bind', FWebSocketBind);
+    Ini.WriteString('security', 'api_key', FApiKey);
+    Ini.WriteBool('security', 'allow_remote_without_api_key',
+      FAllowRemoteWithoutApiKey);
+    Ini.WriteBool('security', 'commands_enabled', FCommandsEnabled);
 
     // Campos mantidos por compatibilidade enquanto não forem removidos
     // definitivamente da aplicação.

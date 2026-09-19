@@ -102,6 +102,9 @@ begin
   FDevice.OnWeight := @DeviceWeight;
   FApi := TScaleApi.Create(FDevice, FSettings);
   FWebSocket := TWeightWebSocketServer.Create;
+  FWebSocket.ApiKey := FSettings.ApiKey;
+  FWebSocket.BindAddress := FSettings.WebSocketBind;
+  FWebSocket.AllowRemoteWithoutApiKey := FSettings.AllowRemoteWithoutApiKey;
 
   FDesiredActive := False;
   FAutoReconnect := FSettings.ReconnectEnabled;
@@ -133,6 +136,10 @@ begin
   FDevice.Config.DataBits := FSettings.DATABIT;
   FDevice.Config.Parity := FSettings.PARIDADE;
   FDevice.Config.StopBits := FSettings.STOPBIT;
+
+  FWebSocket.ApiKey := FSettings.ApiKey;
+  FWebSocket.BindAddress := FSettings.WebSocketBind;
+  FWebSocket.AllowRemoteWithoutApiKey := FSettings.AllowRemoteWithoutApiKey;
 end;
 
 procedure TScaleApplication.SetConnectionState(AState: TScaleConnectionState;

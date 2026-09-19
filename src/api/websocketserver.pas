@@ -20,9 +20,18 @@ type
   TWeightWebSocketServer = class
   private
     FClients: TList;
+    FApiKey: string;
+    FBindAddress: string;
+    FAllowRemoteWithoutApiKey: Boolean;
 
     function HeaderValue(const ARequest, AHeader: string): string;
     function RequestPath(const ARequest: string): string;
+    function RequestRoute(const ARequest: string): string;
+    function QueryParam(const APath, AName: string): string;
+    function IsLoopbackBind: Boolean;
+    function IsLoopbackPeer(const APeer: string): Boolean;
+    function ConstantTimeEquals(const A, B: string): Boolean;
+    function RequestApiKey(const ARequest, APath: string): string;
     function WebSocketAccept(const AKey: string): string;
     function TextFrame(const APayload: UTF8String): AnsiString;
     procedure RejectClient(ASocket: TLSocket; ACode: Integer; const AText: string);
@@ -38,6 +47,11 @@ type
     procedure ClientData(ASocket: TLSocket);
     procedure Broadcast(const APayload: UTF8String);
     function ClientCount: Integer;
+
+    property ApiKey: string read FApiKey write FApiKey;
+    property BindAddress: string read FBindAddress write FBindAddress;
+    property AllowRemoteWithoutApiKey: Boolean
+      read FAllowRemoteWithoutApiKey write FAllowRemoteWithoutApiKey;
   end;
 
 implementation
@@ -56,6 +70,9 @@ constructor TWeightWebSocketServer.Create;
 begin
   inherited Create;
   FClients := TList.Create;
+  FApiKey := '';
+  FBindAddress := '127.0.0.1';
+  FAllowRemoteWithoutApiKey := False;
 end;
 
 destructor TWeightWebSocketServer.Destroy;
@@ -117,6 +134,110 @@ begin
   Result := Copy(FirstLine, P1, P2 - P1);
 end;
 
+function TWeightWebSocketServer.RequestRoute(const ARequest: string): string;
+var
+  Path: string;
+  P: Integer;
+begin
+  Path := RequestPath(ARequest);
+  P := Pos('?', Path);
+  if P > 0 then
+    Result := Copy(Path, 1, P - 1)
+  else
+    Result := Path;
+end;
+
+function TWeightWebSocketServer.QueryParam(const APath, AName: string): string;
+var
+  P, I, EqPos: Integer;
+  Query, Item, Name: string;
+  Parts: TStringList;
+begin
+  Result := '';
+  P := Pos('?', APath);
+  if P <= 0 then
+    Exit;
+
+  Query := Copy(APath, P + 1, MaxInt);
+  Parts := TStringList.Create;
+  try
+    Parts.Delimiter := '&';
+    Parts.StrictDelimiter := True;
+    Parts.DelimitedText := Query;
+
+    for I := 0 to Parts.Count - 1 do
+    begin
+      Item := Parts[I];
+      EqPos := Pos('=', Item);
+      if EqPos <= 0 then
+        Continue;
+
+      Name := Copy(Item, 1, EqPos - 1);
+      if SameText(Name, AName) then
+      begin
+        Result := Copy(Item, EqPos + 1, MaxInt);
+        Exit;
+      end;
+    end;
+  finally
+    Parts.Free;
+  end;
+end;
+
+function TWeightWebSocketServer.IsLoopbackBind: Boolean;
+var
+  V: string;
+begin
+  V := LowerCase(Trim(FBindAddress));
+  Result := (V = '127.0.0.1') or (V = 'localhost') or (V = '::1');
+end;
+
+function TWeightWebSocketServer.IsLoopbackPeer(const APeer: string): Boolean;
+var
+  V: string;
+begin
+  V := LowerCase(Trim(APeer));
+  Result :=
+    (V = '127.0.0.1') or
+    (V = '::1') or
+    (V = '0:0:0:0:0:0:0:1') or
+    (Pos('127.', V) = 1);
+end;
+
+function TWeightWebSocketServer.ConstantTimeEquals(const A, B: string): Boolean;
+var
+  I, Diff: Integer;
+begin
+  if Length(A) <> Length(B) then
+    Exit(False);
+
+  Diff := 0;
+  for I := 1 to Length(A) do
+    Diff := Diff or (Ord(A[I]) xor Ord(B[I]));
+
+  Result := Diff = 0;
+end;
+
+function TWeightWebSocketServer.RequestApiKey(const ARequest,
+  APath: string): string;
+var
+  Auth: string;
+begin
+  Result := Trim(HeaderValue(ARequest, 'X-API-Key'));
+  if Result <> '' then
+    Exit;
+
+  Auth := Trim(HeaderValue(ARequest, 'Authorization'));
+  if Pos('BEARER ', UpperCase(Auth)) = 1 then
+  begin
+    Result := Trim(Copy(Auth, 8, MaxInt));
+    if Result <> '' then
+      Exit;
+  end;
+
+  Result := Trim(QueryParam(APath, 'api_key'));
+end;
+
 function TWeightWebSocketServer.WebSocketAccept(const AKey: string): string;
 var
   Hash: TIdHashSHA1;
@@ -165,7 +286,7 @@ function TWeightWebSocketServer.CompleteHandshake(ASocket: TLSocket;
   AClient: TWebSocketClient): Boolean;
 var
   HeaderEnd: Integer;
-  Request, Path, Key, UpgradeValue, ConnectionValue, Response: string;
+  Request, Path, Route, ApiKey, Key, UpgradeValue, ConnectionValue, Response: string;
 begin
   Result := False;
 
@@ -177,7 +298,32 @@ begin
   Delete(AClient.Buffer, 1, HeaderEnd + 3);
 
   Path := RequestPath(Request);
-  if not (SameText(Path, '/weight') or SameText(Path, '/api/v1/weight')) then
+  Route := RequestRoute(Request);
+
+  if IsLoopbackBind and (not IsLoopbackPeer(ASocket.PeerAddress)) then
+  begin
+    RejectClient(ASocket, 403, 'Forbidden');
+    Exit;
+  end;
+
+  if (not IsLoopbackBind) and (Trim(FApiKey) = '') and
+     (not FAllowRemoteWithoutApiKey) then
+  begin
+    RejectClient(ASocket, 503, 'Service Unavailable');
+    Exit;
+  end;
+
+  if Trim(FApiKey) <> '' then
+  begin
+    ApiKey := RequestApiKey(Request, Path);
+    if not ConstantTimeEquals(FApiKey, ApiKey) then
+    begin
+      RejectClient(ASocket, 401, 'Unauthorized');
+      Exit;
+    end;
+  end;
+
+  if not (SameText(Route, '/weight') or SameText(Route, '/api/v1/weight')) then
   begin
     RejectClient(ASocket, 404, 'Not Found');
     Exit;
