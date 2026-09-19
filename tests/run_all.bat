@@ -10,6 +10,7 @@ call :run toledo_protocol_test || exit /b 1
 call :run commands_test || exit /b 1
 call :run config_test || exit /b 1
 call :run api_json_test || exit /b 1
+call :run protocol_factory_test || exit /b 1
 
 echo OK - toda a suite passou
 exit /b 0
