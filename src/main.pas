@@ -9,7 +9,8 @@ uses
   ExtCtrls, Menus, PopupNotifier, LazSerial, FileUtil, LazFileUtils, LazSynaSer,
   synaser, IdHTTPServer, lNetComponents, LedNumber, setmain, registro, peso,
   setup, lNet, log, IdCustomHTTPServer, IdCompressionIntercept,
-  IdSSLOpenSSL, IdSchedulerOfThreadDefault, IdContext, scaledevice, scaleapi;
+  IdSSLOpenSSL, IdSchedulerOfThreadDefault, IdContext, scaledevice, scaleapi,
+  scalecommands;
 
 Const
     Version : string =  '0.04';
@@ -55,6 +56,8 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure IdHTTPServer1CommandGet(AContext: TIdContext;
+      ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
+    procedure IdHTTPServer1CommandOther(AContext: TIdContext;
       ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
     procedure LazSerial1BlockSerialStatus(Sender: TObject;
       Reason: THookSerialReason; const Value: string);
@@ -183,6 +186,80 @@ begin
   end;
 end;
 
+procedure Tfrmmain.IdHTTPServer1CommandOther(AContext: TIdContext;
+  ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
+var
+  Path: string;
+  CommandName: string;
+  Command: TScaleCommand;
+  Snapshot: TScaleSnapshot;
+begin
+  Path := ARequestInfo.Document;
+
+  if Pos('/api/v1/commands/', LowerCase(Path)) <> 1 then
+  begin
+    AResponseInfo.ResponseNo := 404;
+    AResponseInfo.ContentType := 'application/json; charset=utf-8';
+    AResponseInfo.ContentText := FScaleApi.NotFoundJson(Path);
+    Exit;
+  end;
+
+  if not SameText(ARequestInfo.Command, 'POST') then
+  begin
+    AResponseInfo.ResponseNo := 405;
+    AResponseInfo.ContentType := 'application/json; charset=utf-8';
+    AResponseInfo.ContentText :=
+      FScaleApi.CommandResultJson('', False, 'method_not_allowed');
+    Exit;
+  end;
+
+  CommandName := Copy(Path, Length('/api/v1/commands/') + 1, MaxInt);
+
+  if not TryParseScaleCommand(CommandName, Command) then
+  begin
+    AResponseInfo.ResponseNo := 404;
+    AResponseInfo.ContentType := 'application/json; charset=utf-8';
+    AResponseInfo.ContentText :=
+      FScaleApi.CommandResultJson(CommandName, False, 'unknown_command');
+    Exit;
+  end;
+
+  if not FScaleDevice.SupportsCommand(Command) then
+  begin
+    AResponseInfo.ResponseNo := 501;
+    AResponseInfo.ContentType := 'application/json; charset=utf-8';
+    AResponseInfo.ContentText :=
+      FScaleApi.CommandResultJson(CommandName, False,
+        'command_not_supported_by_current_protocol');
+    Exit;
+  end;
+
+  Snapshot := FScaleDevice.GetSnapshot;
+  if not Snapshot.Connected then
+  begin
+    AResponseInfo.ResponseNo := 409;
+    AResponseInfo.ContentType := 'application/json; charset=utf-8';
+    AResponseInfo.ContentText :=
+      FScaleApi.CommandResultJson(CommandName, False, 'scale_not_connected');
+    Exit;
+  end;
+
+  if FScaleDevice.QueueCommand(Command) then
+  begin
+    AResponseInfo.ResponseNo := 202;
+    AResponseInfo.ContentType := 'application/json; charset=utf-8';
+    AResponseInfo.ContentText :=
+      FScaleApi.CommandResultJson(CommandName, True, 'queued');
+  end
+  else
+  begin
+    AResponseInfo.ResponseNo := 409;
+    AResponseInfo.ContentType := 'application/json; charset=utf-8';
+    AResponseInfo.ContentText :=
+      FScaleApi.CommandResultJson(CommandName, False, 'command_not_queued');
+  end;
+end;
+
 procedure Tfrmmain.LazSerial1BlockSerialStatus(Sender: TObject;
   Reason: THookSerialReason; const Value: string);
 begin
@@ -283,7 +360,10 @@ end;
 procedure Tfrmmain.Timer1Timer(Sender: TObject);
 begin
   if Assigned(FScaleDevice) then
+  begin
+    FScaleDevice.ProcessPendingCommands;
     FScaleDevice.RequestWeight;
+  end;
   Application.ProcessMessages();
 end;
 
