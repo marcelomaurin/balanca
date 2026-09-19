@@ -42,6 +42,8 @@ type
     FLogLevel: string;
     FLogFile: string;
     FLogConsole: Boolean;
+    FLegacyHttpEnabled: Boolean;
+    FLegacyConfigMigration: Boolean;
     FLegacy: TLegacySettings;
 
     procedure Default;
@@ -125,6 +127,9 @@ type
     property LogLevel: string read FLogLevel write FLogLevel;
     property LogFile: string read FLogFile write FLogFile;
     property LogConsole: Boolean read FLogConsole write FLogConsole;
+    property LegacyHttpEnabled: Boolean read FLegacyHttpEnabled write FLegacyHttpEnabled;
+    property LegacyConfigMigration: Boolean read FLegacyConfigMigration
+      write FLegacyConfigMigration;
     property Legacy: TLegacySettings read FLegacy;
     property Path: string read FPATH;
   end;
@@ -206,6 +211,9 @@ begin
   FLogLevel := 'info';
   FLogFile := IncludeTrailingPathDelimiter(FPATH) + 'balanca.log';
   FLogConsole := False;
+
+  FLegacyHttpEnabled := True;
+  FLegacyConfigMigration := True;
 end;
 
 function TSetMain.ConfigFileName: string;
@@ -264,8 +272,8 @@ begin
   if IsLegacyConfigFile(ConfigName) then
   begin
     LoadLegacyFile(ConfigName);
-    // Migra automaticamente para INI após carregar com sucesso.
-    SalvaContexto;
+    if FLegacyConfigMigration then
+      SalvaContexto;
     Exit;
   end;
 
@@ -313,6 +321,11 @@ begin
       FLogLevel := 'info';
     if FLogFile = '' then
       FLogFile := IncludeTrailingPathDelimiter(FPATH) + 'balanca.log';
+
+    FLegacyHttpEnabled := Ini.ReadBool('compatibility',
+      'legacy_http_enabled', FLegacyHttpEnabled);
+    FLegacyConfigMigration := Ini.ReadBool('compatibility',
+      'legacy_config_migration', FLegacyConfigMigration);
 
     if FHttpBind = '' then
       FHttpBind := '127.0.0.1';
@@ -399,6 +412,10 @@ begin
     Ini.WriteString('logging', 'level', FLogLevel);
     Ini.WriteString('logging', 'file', FLogFile);
     Ini.WriteBool('logging', 'console', FLogConsole);
+
+    Ini.WriteBool('compatibility', 'legacy_http_enabled', FLegacyHttpEnabled);
+    Ini.WriteBool('compatibility', 'legacy_config_migration',
+      FLegacyConfigMigration);
 
     // Campos mantidos por compatibilidade enquanto não forem removidos
     // definitivamente da aplicação.
