@@ -10,11 +10,12 @@ uses
   synaser, IdHTTPServer, lNetComponents, LedNumber, setmain, registro, peso,
   setup, lNet, log, IdCustomHTTPServer, IdCompressionIntercept,
   IdSSLOpenSSL, IdSchedulerOfThreadDefault, IdContext, scaledevice, scaleapi,
-  scalecommands;
+  scalecommands, websocketserver;
 
 Const
     Version : string =  '0.04';
     PortBalanca = 8097;
+    PortWebSocket = 8098;
     ServerName :string = 'localhost';
 
 
@@ -65,6 +66,7 @@ type
     procedure LazSerial1Status(Sender: TObject; Reason: THookSerialReason;
       const Value: string);
     procedure LTCPComponent1Connect(aSocket: TLSocket);
+    procedure LTCPComponent1Disconnect(aSocket: TLSocket);
     procedure LTCPComponent1Receive(aSocket: TLSocket);
     procedure MenuItem1Click(Sender: TObject);
     procedure MenuItem2Click(Sender: TObject);
@@ -78,13 +80,13 @@ type
   private
     FScaleDevice: TScaleDevice;
     FScaleApi: TScaleApi;
+    FWebSocketServer: TWeightWebSocketServer;
+    FWebSocketStarted: Boolean;
     procedure ScaleWeight(Sender: TObject; const AWeight: string);
     procedure ListDev();
     function PegaSerial() : String;
     procedure SalvarContexto();
     procedure Setup();
-    procedure getPage(aSocket : TLSocket; PeerAddress : string; mensagem: string);
-    procedure RespostaHTMLCabecalho(aSocket: TLSocket);
   public
 
   end;
@@ -101,6 +103,10 @@ implementation
 procedure Tfrmmain.ScaleWeight(Sender: TObject; const AWeight: string);
 begin
   frmPeso.Peso(AWeight);
+
+  if Assigned(FWebSocketServer) then
+    FWebSocketServer.Broadcast(FScaleApi.WeightJson);
+
   Application.ProcessMessages;
 end;
 
@@ -112,6 +118,8 @@ begin
   FScaleDevice := TScaleDevice.Create(LazSerial1);
   FScaleDevice.OnWeight := @ScaleWeight;
   FScaleApi := TScaleApi.Create(FScaleDevice, Fsetmain);
+  FWebSocketServer := TWeightWebSocketServer.Create;
+  FWebSocketStarted := False;
   self.left := Fsetmain.posx;
   self.top := fsetmain.posy;
   frmSetup.edSerialPort.text := FSETMAIN.COMPORT;
@@ -126,6 +134,7 @@ end;
 procedure Tfrmmain.FormDestroy(Sender: TObject);
 begin
   SalvarContexto();
+  FWebSocketServer.Free;
   FScaleApi.Free;
   FScaleDevice.Free;
   Fsetmain.free();
@@ -290,35 +299,21 @@ end;
 
 procedure Tfrmmain.LTCPComponent1Connect(aSocket: TLSocket);
 begin
-  aSocket.SendMessage('Connected!');
-  //frmLog.Log('Connected:'+aSocket.PeerAddress);
+  if Assigned(FWebSocketServer) then
+    FWebSocketServer.ClientConnected(aSocket);
+end;
+
+procedure Tfrmmain.LTCPComponent1Disconnect(aSocket: TLSocket);
+begin
+  if Assigned(FWebSocketServer) then
+    FWebSocketServer.ClientDisconnected(aSocket);
 end;
 
 procedure Tfrmmain.LTCPComponent1Receive(aSocket: TLSocket);
-var
-  mensagem : string;
-  strnro : string;
-  posicao : integer;
 begin
-  //Mensagem recebida padrao Fila:nro+#13
-  aSocket.GetMessage(mensagem);
-  //PopupNotifier1.Text:=mensagem;
-  //PopupNotifier1.Show;
-  //frmlog.Log('Receive:'+aSocket.PeerAddress+',msg:'+mensagem);
-  //if (mensagem <> '') then
-  //if (pos(mensagem,'GET / HTTP/1.1')<>-1) then
-  begin
-     frmlog.Log('rec:'+mensagem);
-     (*
-      if (POS(mensagem, 'PESO:')>=0) then
-      begin
-        aSocket.SendMessage('PESO:'+ frmPeso.lbPeso.Caption +#13);  //Vou implementar aqui
-        aSocket.Disconnect(true);
-      end;
-      *)
-     getPage(aSocket, aSocket.PeerAddress, mensagem);
-  end;
-  //aSocket.Disconnect(true);
+  if Assigned(FWebSocketServer) then
+    FWebSocketServer.ClientData(aSocket);
+
   LTCPComponent1.CallAction();
 end;
 
@@ -399,6 +394,12 @@ begin
     TrayIcon1.Visible := true;
     TrayIcon1.Hint := 'Connected';
     IdHTTPServer1.Active := true;
+
+    if not FWebSocketStarted then
+    begin
+      FWebSocketStarted := LTCPComponent1.Listen(PortWebSocket);
+    end;
+
     Hide;
   end;
 end;
@@ -492,54 +493,6 @@ begin
   //frmSetup.rgFlowControl.ItemIndex:=FSETMAIN.;
   frmSetup.rgStopbit.ItemIndex := FSETMAIN.STOPBIT;
   frmSetup.show();
-end;
-
-procedure Tfrmmain.RespostaHTMLCabecalho(aSocket: TLSocket);
-var
-  buffer : string;
-begin
-
- buffer :='HTTP/1.1 200 OK '+#10;
- buffer := buffer +'Content-Type: text/html'+#10;
- buffer := buffer + '<!DOCTYPE HTML>'+#10;
- buffer := buffer + '<html>'+#10;
- buffer := buffer + '<head>'+#10;
- buffer := buffer + '<title>Meu SRV</title>'+#10;
- buffer := buffer + '</head>'+#10;
- buffer := buffer + '<body>'+#10;
- buffer := buffer + 'hello'+#10;
- buffer := buffer + '</body>'+#10;
- buffer := buffer + '</html>'+#10;
-
- //aSocket.SendMessage('Connection: close'+#10+#13);
- //aSocket.Send(UTF8Char(buffer),length(buffer));
-
-end;
-
-procedure Tfrmmain.getPage(aSocket: TLSocket; PeerAddress: string;
-  mensagem: string);
-var
-  buffer : WIDEstring;
-begin
-
-  RespostaHTMLCabecalho(aSocket);
-  //aSocket.SendMessage('Host:'+ServerName+' '+#10+#13);
-  //buffer := buffer + 'Refresh: 5';
-  //buffer := buffer + #13#10;
-  (*
-  aSocket.SendMessage('<!DOCTYPE HTML>'+#10+#13);
-  aSocket.SendMessage('<html>'+#10+#13);
-  aSocket.SendMessage('<head>'+#10+#13);
-  aSocket.SendMessage('</head>'+#10+#13);
-  aSocket.SendMessage('<body>'+#10+#13);
-  aSocket.SendMessage('hello '+#10+#13);
-  aSocket.SendMessage('</body>'+#10+#13);
-  aSocket.SendMessage('</html>'+#10+#13);
-  //aSocket.Send(buffer,sizeof(buffer));
-  frmLog.Log('ENV:'+buffer);
-  //aSocket.SendMessage(buffer);
-  //LTCPComponent1.CallAction();
-  *)
 end;
 
 end.
