@@ -12,6 +12,7 @@ Este diretório reúne a documentação técnica e operacional do projeto.
 - [Drivers de protocolo](protocol-drivers.md)
 - [CI/CD](ci-cd.md)
 - [Logging e observabilidade](observability.md)
+- [Compatibilidade legada](legacy-compatibility.md)
 
 ## Comunicação e integração
 
