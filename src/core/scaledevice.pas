@@ -179,7 +179,7 @@ end;
 
 function TScaleDevice.QueueCommand(ACommand: TScaleCommand): Boolean;
 begin
-  Result := SupportsCommand(ACommand);
+  Result := SupportsCommand(ACommand) and IsConnected;
   if not Result then
     Exit;
 
