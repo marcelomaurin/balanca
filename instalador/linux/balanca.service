@@ -1,0 +1,16 @@
+[Unit]
+Description=Balanca - leitura serial e API HTTP/WebSocket
+After=network.target
+
+[Service]
+Type=simple
+User=balanca
+Group=balanca
+WorkingDirectory=/opt/balanca
+ExecStart=/opt/balanca/balanca_service --config-dir=/etc/balanca
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

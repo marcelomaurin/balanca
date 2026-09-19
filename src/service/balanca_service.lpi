@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="11"/>
+    <General>
+      <MainUnit Value="0"/>
+      <Title Value="balanca_service"/>
+      <ResourceType Value="res"/>
+    </General>
+    <BuildModes Count="1">
+      <Item1 Name="Default" Default="True"/>
+    </BuildModes>
+    <Units Count="2">
+      <Unit0>
+        <Filename Value="balanca_service.lpr"/>
+        <IsPartOfProject Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="headlesshost.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit1>
+    </Units>
+    <RequiredPackages Count="5">
+      <Item1><PackageName Value="indylaz"/></Item1>
+      <Item2><PackageName Value="lnetvisual"/></Item2>
+      <Item3><PackageName Value="lnetbase"/></Item3>
+      <Item4><PackageName Value="LazSerialPort"/></Item4>
+      <Item5><PackageName Value="LCL"/></Item5>
+    </RequiredPackages>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <Target>
+      <Filename Value="balanca_service"/>
+    </Target>
+    <SearchPaths>
+      <OtherUnitFiles Value="..;../core;../api;../app"/>
+      <UnitOutputDirectory Value="../lib/service/$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+  </CompilerOptions>
+</CONFIG>
