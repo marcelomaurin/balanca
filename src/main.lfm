@@ -283,6 +283,7 @@ object frmmain: Tfrmmain
     IOHandler = IdServerIOHandlerSSLOpenSSL1
     Scheduler = IdSchedulerOfThreadDefault1
     OnCommandGet = IdHTTPServer1CommandGet
+    OnCommandOther = IdHTTPServer1CommandOther
     Left = 292
     Top = 132
   end
