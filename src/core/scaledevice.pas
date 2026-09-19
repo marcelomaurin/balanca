@@ -5,7 +5,8 @@ unit scaledevice;
 interface
 
 uses
-  Classes, SysUtils, SyncObjs, LazSerial, scaleconfig, serialtransport, toledoprotocol;
+  Classes, SysUtils, SyncObjs, LazSerial, scaleconfig, serialtransport,
+  toledoprotocol, scalecommands;
 
 type
   TScaleSnapshot = record
@@ -26,6 +27,7 @@ type
     FLock: TCriticalSection;
     FConnected: Boolean;
     FProtocol: TToledoProtocol;
+    FPendingCommands: TStringList;
     FLastWeight: string;
     FLastFrame: string;
     FLastError: string;
@@ -34,6 +36,7 @@ type
     procedure ProtocolWeight(Sender: TObject; const AWeight: string);
     function GetDiscardedFrames: QWord;
     function GetIgnoredBytes: QWord;
+    function ExecuteCommand(ACommand: TScaleCommand): Boolean;
   public
     constructor Create(ASerial: TLazSerial);
     destructor Destroy; override;
@@ -42,6 +45,9 @@ type
     procedure Disconnect;
     procedure ProcessIncoming;
     procedure RequestWeight;
+    function SupportsCommand(ACommand: TScaleCommand): Boolean;
+    function QueueCommand(ACommand: TScaleCommand): Boolean;
+    procedure ProcessPendingCommands;
     function IsConnected: Boolean;
     function GetSnapshot: TScaleSnapshot;
 
@@ -66,6 +72,7 @@ begin
   FConnected := False;
   FProtocol := TToledoProtocol.Create;
   FProtocol.OnWeight := @ProtocolWeight;
+  FPendingCommands := TStringList.Create;
   FLastWeight := '';
   FLastFrame := '';
   FLastError := '';
@@ -75,6 +82,7 @@ end;
 destructor TScaleDevice.Destroy;
 begin
   Disconnect;
+  FPendingCommands.Free;
   FProtocol.Free;
   FTransport.Free;
   FConfig.Free;
@@ -161,7 +169,70 @@ end;
 
 procedure TScaleDevice.RequestWeight;
 begin
-  FTransport.WriteData(TOLEDO_ENQ);
+  ExecuteCommand(scReadWeight);
+end;
+
+function TScaleDevice.SupportsCommand(ACommand: TScaleCommand): Boolean;
+begin
+  Result := FProtocol.SupportsCommand(ACommand);
+end;
+
+function TScaleDevice.QueueCommand(ACommand: TScaleCommand): Boolean;
+begin
+  Result := SupportsCommand(ACommand);
+  if not Result then
+    Exit;
+
+  FLock.Acquire;
+  try
+    FPendingCommands.Add(ScaleCommandName(ACommand));
+  finally
+    FLock.Release;
+  end;
+end;
+
+procedure TScaleDevice.ProcessPendingCommands;
+var
+  CommandName: string;
+  Command: TScaleCommand;
+begin
+  while True do
+  begin
+    CommandName := '';
+
+    FLock.Acquire;
+    try
+      if FPendingCommands.Count > 0 then
+      begin
+        CommandName := FPendingCommands[0];
+        FPendingCommands.Delete(0);
+      end;
+    finally
+      FLock.Release;
+    end;
+
+    if CommandName = '' then
+      Break;
+
+    if TryParseScaleCommand(CommandName, Command) then
+      ExecuteCommand(Command);
+  end;
+end;
+
+function TScaleDevice.ExecuteCommand(ACommand: TScaleCommand): Boolean;
+var
+  Data: string;
+begin
+  Result := False;
+
+  if not FProtocol.TryEncodeCommand(ACommand, Data) then
+    Exit;
+
+  if not IsConnected then
+    Exit;
+
+  FTransport.WriteData(Data);
+  Result := True;
 end;
 
 function TScaleDevice.IsConnected: Boolean;
