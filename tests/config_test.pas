@@ -62,6 +62,16 @@ begin
       AssertEquals(456, Settings.posy, 'POSY legado');
       AssertEquals('COM77', Settings.COMPORT, 'COMPORT legado');
       AssertTrue(Settings.Splash, 'SPLASH legado');
+      AssertTrue(Settings.ReconnectEnabled, 'reconexão default');
+      AssertEquals(3000, Settings.ResponseTimeoutMs, 'timeout default');
+      AssertEquals(1000, Settings.ReconnectInitialMs, 'backoff inicial default');
+      AssertEquals(30000, Settings.ReconnectMaxMs, 'backoff máximo default');
+
+      Settings.ReconnectEnabled := True;
+      Settings.ResponseTimeoutMs := 4500;
+      Settings.ReconnectInitialMs := 1500;
+      Settings.ReconnectMaxMs := 20000;
+      Settings.SalvaContexto;
     finally
       Settings.Free;
     end;
@@ -75,6 +85,10 @@ begin
       AssertEquals('COM77', Reloaded.COMPORT, 'releitura do INI');
       AssertEquals(123, Reloaded.posx, 'releitura POSX');
       AssertEquals(456, Reloaded.posy, 'releitura POSY');
+      AssertTrue(Reloaded.ReconnectEnabled, 'releitura reconnect enabled');
+      AssertEquals(4500, Reloaded.ResponseTimeoutMs, 'releitura timeout');
+      AssertEquals(1500, Reloaded.ReconnectInitialMs, 'releitura backoff inicial');
+      AssertEquals(20000, Reloaded.ReconnectMaxMs, 'releitura backoff máximo');
     finally
       Reloaded.Free;
     end;
