@@ -69,6 +69,7 @@ begin
   FSerial.OnRxData := @SerialRxData;
 
   FScaleApp := TScaleApplication.Create(FSerial, FSettings);
+  FScaleApp.Logger.ConsoleEnabled := True;
   FScaleApp.OnWeight := @WeightReceived;
   FScaleApp.OnConnectionState := @ConnectionStateChanged;
 
@@ -117,18 +118,21 @@ begin
   FTcpServer.Listen(WEBSOCKET_PORT);
 
   if not FScaleApp.Connect then
-    WriteLn(StdErr, 'serial: conexão inicial falhou; reconexão automática ativa');
+    FScaleApp.Logger.Warn('serial',
+      'Conexão inicial falhou; reconexão automática ativa');
 
   FLastTick := GetTickCount64;
   FStarted := True;
 
-  WriteLn('http: ', FSettings.HttpBind, ':', HTTP_PORT);
-  WriteLn('websocket: política bind ', FSettings.WebSocketBind,
-    ', porta ', WEBSOCKET_PORT, ' caminho /weight');
+  FScaleApp.Logger.Info('http',
+    FSettings.HttpBind + ':' + IntToStr(HTTP_PORT));
+  FScaleApp.Logger.Info('websocket',
+    'bind=' + FSettings.WebSocketBind + ' port=' + IntToStr(WEBSOCKET_PORT) +
+    ' path=/weight');
   if Trim(FSettings.ApiKey) <> '' then
-    WriteLn('seguranca: API key habilitada')
+    FScaleApp.Logger.Info('security', 'API key habilitada')
   else
-    WriteLn('seguranca: API key não configurada');
+    FScaleApp.Logger.Warn('security', 'API key não configurada');
 end;
 
 procedure THeadlessScaleHost.Stop;
@@ -140,7 +144,7 @@ begin
     FScaleApp.Disconnect;
   except
     on E: Exception do
-      WriteLn(StdErr, 'erro ao desconectar serial: ', E.Message);
+      FScaleApp.Logger.Error('serial', 'Erro ao desconectar: ' + E.Message);
   end;
 
   FHttpServer.Active := False;
@@ -165,7 +169,7 @@ begin
       FScaleApp.Tick;
     except
       on E: Exception do
-        WriteLn(StdErr, 'tick: ', E.Message);
+        FScaleApp.Logger.Error('service', 'Tick: ' + E.Message);
     end;
   end;
 end;
@@ -176,7 +180,7 @@ begin
     FScaleApp.ProcessSerial;
   except
     on E: Exception do
-      WriteLn(StdErr, 'serial rx: ', E.Message);
+      FScaleApp.Logger.Error('serial', 'RX: ' + E.Message);
   end;
 end;
 
@@ -209,7 +213,7 @@ end;
 
 procedure THeadlessScaleHost.WeightReceived(Sender: TObject; const AWeight: string);
 begin
-  WriteLn('peso: ', AWeight);
+  FScaleApp.Logger.Debug('weight', 'Peso: ' + AWeight);
 end;
 
 procedure THeadlessScaleHost.ConnectionStateChanged(Sender: TObject;
@@ -222,7 +226,8 @@ const
     'waiting_reconnect'
   );
 begin
-  WriteLn('conexao: ', STATE_NAMES[AState], ' - ', AMessage);
+  FScaleApp.Logger.Info('connection',
+    STATE_NAMES[AState] + ' - ' + AMessage);
 end;
 
 end.
