@@ -109,6 +109,8 @@ begin
   begin
     AResponseInfo.ResponseNo := 503;
     AResponseInfo.ContentType := 'application/json; charset=utf-8';
+    FApp.Metrics.IncHttpUnauthorized;
+    FApp.Logger.Warn('http', 'Acesso remoto bloqueado por configuração insegura');
     AResponseInfo.ContentText := ErrorJson(
       'security_configuration_required',
       'Acesso remoto exige api_key ou liberação explícita'
@@ -123,6 +125,8 @@ begin
   if ConstantTimeEquals(Expected, Provided) then
     Exit(True);
 
+  FApp.Metrics.IncHttpUnauthorized;
+  FApp.Logger.Warn('http', 'API key inválida ou ausente');
   AResponseInfo.ResponseNo := 401;
   AResponseInfo.ContentType := 'application/json; charset=utf-8';
   AResponseInfo.CustomHeaders.Values['WWW-Authenticate'] := 'ApiKey';
@@ -135,6 +139,9 @@ var
   Path: string;
   LegacyHtml: string;
 begin
+  FApp.Metrics.IncHttpRequests;
+  FApp.Logger.Debug('http', ARequestInfo.Command + ' ' + ARequestInfo.Document);
+
   if not Authorize(ARequestInfo, AResponseInfo) then
     Exit;
 
@@ -157,6 +164,12 @@ begin
     AResponseInfo.ResponseNo := 200;
     AResponseInfo.ContentType := 'application/json; charset=utf-8';
     AResponseInfo.ContentText := FApp.Api.ConfigJson;
+  end
+  else if SameText(Path, '/api/v1/metrics') then
+  begin
+    AResponseInfo.ResponseNo := 200;
+    AResponseInfo.ContentType := 'application/json; charset=utf-8';
+    AResponseInfo.ContentText := FApp.Metrics.ToJson;
   end
   else if SameText(Path, '/') or SameText(Path, '/legacy') then
   begin
@@ -190,6 +203,9 @@ var
   Command: TScaleCommand;
   Snapshot: TScaleSnapshot;
 begin
+  FApp.Metrics.IncHttpRequests;
+  FApp.Logger.Debug('http', ARequestInfo.Command + ' ' + ARequestInfo.Document);
+
   if not Authorize(ARequestInfo, AResponseInfo) then
     Exit;
 
@@ -205,6 +221,7 @@ begin
 
   if not FApp.Settings.CommandsEnabled then
   begin
+    FApp.Logger.Warn('http', 'Comandos remotos desabilitados');
     AResponseInfo.ResponseNo := 403;
     AResponseInfo.ContentType := 'application/json; charset=utf-8';
     AResponseInfo.ContentText := ErrorJson('commands_disabled',
@@ -254,6 +271,7 @@ begin
 
   if FApp.QueueCommand(Command) then
   begin
+    FApp.Logger.Info('http', 'Comando aceito: ' + CommandName);
     AResponseInfo.ResponseNo := 202;
     AResponseInfo.ContentType := 'application/json; charset=utf-8';
     AResponseInfo.ContentText :=
