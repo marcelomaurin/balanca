@@ -310,7 +310,9 @@ end;
 
 procedure Tfrmmain.btlogClick(Sender: TObject);
 begin
-  frmLog.show;
+  if Assigned(FScaleApp) and FileExists(FScaleApp.Logger.FileName) then
+    frmLog.meLog.Lines.LoadFromFile(FScaleApp.Logger.FileName);
+  frmLog.Show;
 end;
 
 procedure Tfrmmain.btsairChange(Sender: TObject);
